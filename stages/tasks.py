@@ -1,0 +1,265 @@
+"""The seven pipeline stages.
+
+Each stage is a thin Celery task: it marks the job's progress, calls exactly
+one provider / compose / delivery function, records the artifact it produced,
+and returns the (mutated) ``ctx`` for the next link in the chain. All the
+heavy lifting lives in ``providers`` / ``compose`` / ``delivery``; all failure
+bookkeeping lives in ``stages.base.PipelineTask``. Artifacts are namespaced by
+``job_id`` so a re-run overwrites cleanly (idempotency).
+"""
+
+from __future__ import annotations
+
+import logging
+from pathlib import Path
+
+from celery import shared_task
+from django.conf import settings
+
+from compose.captions import build_ass, window_words
+from compose.ffmpeg import compose_final
+from core.audio import clip_audio, normalize_loudness, parse_timerange
+from core.context import JobContext
+from core.fetch import fetch_audio
+from core.storage import artifact_path
+from delivery.telegram import send_video
+from jobs.models import Artifact, Job
+from providers.base import (
+    get_background_generator,
+    get_caption_aligner,
+    get_lip_syncer,
+    get_portrait_generator,
+    get_vocal_separator,
+)
+from stages.base import PipelineTask
+
+logger = logging.getLogger(__name__)
+
+# Shared task options: any provider error is retried with backoff; once retries
+# are exhausted PipelineTask.on_failure records the failure. No ``bind`` — the
+# bodies never call ``self`` (autoretry handles retries).
+_TASK_OPTS = {
+    "base": PipelineTask,
+    "autoretry_for": (Exception,),
+    "max_retries": 3,
+    "retry_backoff": True,
+    "retry_backoff_max": 60,
+}
+
+
+def _advance(job_id: str, stage: str) -> None:
+    Job.objects.filter(pk=job_id).update(status=Job.Status.RUNNING, current_stage=stage)
+
+
+def _record(job_id: str, stage: str, kind: str, path: Path) -> None:
+    Artifact.objects.create(job_id=job_id, stage=stage, kind=kind, path=str(path))
+
+
+def _require_path(value: str | None) -> Path:
+    """An upstream artifact path that must exist by now — loud if it doesn't.
+
+    Narrows ``str | None`` to ``Path`` and turns a stage running out of order
+    (a None where a prior stage should have set a path) into a clear failure
+    rather than a confusing ``Path(None)`` TypeError deep in a provider.
+    """
+    if value is None:
+        raise ValueError("Required artifact path is missing from ctx; a prior stage did not run.")
+    return Path(value)
+
+
+def _build_caption(theme: str, lyrics: str | None) -> str:
+    """A suggested TikTok caption + hashtags from the theme/lyrics.
+
+    Deterministic template — the operator edits it before posting. Keep the
+    embedded-song reminder out; the caption is for the post, not the render.
+    """
+    hook = (lyrics or theme).strip().splitlines()[0] if (lyrics or theme).strip() else "new drop"
+    tags = "#ai #synthwave #fyp #aimusic #tiktokmusic"
+    return f"{hook} 🎶\n\n{tags}"
+
+
+@shared_task(**_TASK_OPTS)
+def prepare_assets(job_id: str) -> dict:
+    _advance(job_id, "prepare_assets")
+    job = Job.objects.get(pk=job_id)
+
+    # If the preset gave a url/query instead of a local file, fetch it now.
+    if not job.song_filename:
+        if not job.song_source:
+            raise ValueError(f"Job {job_id} has neither a song file nor a song source.")
+        fetched = fetch_audio(job.song_source, artifact_path(job_id, "source.mp3"))
+        job.song_filename = str(fetched)
+        job.save(update_fields=["song_filename"])
+        _record(job_id, "prepare_assets", "fetched_audio", fetched)
+
+    song_src = Path(job.song_filename)
+
+    # Normalize the full song first; captions transcribe this (WhisperX's VAD
+    # is unreliable on a short clip — see align_captions).
+    full_normalized = artifact_path(job_id, "normalized_full.mp3")
+    normalize_loudness(song_src, full_normalized)
+    _record(job_id, "prepare_assets", "normalized_full", full_normalized)
+
+    # Optional trim to a hook (keeps lip-sync render time/cost down). The clip
+    # is what every downstream stage operates on; the full song is kept only
+    # for caption transcription.
+    clip_start_s = 0.0
+    clip_end_s = 0.0
+    if job.song_clip:
+        clip_start_s, clip_end_s = parse_timerange(job.song_clip)
+        clip = artifact_path(job_id, "clip.mp3")
+        clip_audio(full_normalized, clip, clip_start_s, clip_end_s)
+        downstream = clip
+        _record(job_id, "prepare_assets", "clipped_audio", clip)
+    else:
+        downstream = full_normalized
+
+    ctx = JobContext(
+        job_id=job_id,
+        theme=job.theme,
+        character_ref=job.character_ref,
+        lyrics=(job.lyrics or None),
+        enable_captions=bool(settings.ENABLE_CAPTIONS and job.lyrics),
+        song_path=str(song_src),
+        song_normalized_path=str(downstream),
+        song_full_path=str(full_normalized),
+        clip_start_s=clip_start_s,
+        clip_end_s=clip_end_s,
+    )
+    return ctx.to_dict()
+
+
+@shared_task(**_TASK_OPTS)
+def separate_vocals(payload: dict) -> dict:
+    ctx = JobContext.from_dict(payload)
+    _advance(ctx.job_id, "separate_vocals")
+    out = artifact_path(ctx.job_id, "vocal_stem.wav")
+    get_vocal_separator().separate(_require_path(ctx.song_normalized_path), out)
+    ctx.vocal_stem_path = str(out)
+    _record(ctx.job_id, "separate_vocals", "vocal_stem", out)
+    return ctx.to_dict()
+
+
+@shared_task(**_TASK_OPTS)
+def align_captions(payload: dict) -> dict:
+    ctx = JobContext.from_dict(payload)
+    _advance(ctx.job_id, "align_captions")
+    if not ctx.enable_captions:
+        logger.info("Captions disabled for job %s; skipping alignment.", ctx.job_id)
+        return ctx.to_dict()
+    # Transcribe the FULL song (WhisperX's VAD is unreliable on a short
+    # isolated clip but nails the full mix), then window the words down to the
+    # clip and rebase them into clip time.
+    full_words = artifact_path(ctx.job_id, "word_timestamps_full.json")
+    get_caption_aligner().align(_require_path(ctx.song_full_path), ctx.lyrics, full_words)
+
+    words = artifact_path(ctx.job_id, "word_timestamps.json")
+    if ctx.clip_end_s > 0:
+        window_words(full_words, words, ctx.clip_start_s, ctx.clip_end_s)
+    else:
+        words = full_words
+    ctx.word_timestamps_path = str(words)
+    _record(ctx.job_id, "align_captions", "word_timestamps", words)
+
+    captions = artifact_path(ctx.job_id, "captions.ass")
+    build_ass(words, captions)
+    ctx.captions_path = str(captions)
+    _record(ctx.job_id, "align_captions", "captions", captions)
+    return ctx.to_dict()
+
+
+@shared_task(**_TASK_OPTS)
+def generate_visuals(payload: dict) -> dict:
+    ctx = JobContext.from_dict(payload)
+    _advance(ctx.job_id, "generate_visuals")
+
+    background = get_background_generator()
+    still = artifact_path(ctx.job_id, "background_still.png")
+    background.generate_still(ctx.theme, still)
+    ctx.background_still_path = str(still)
+    _record(ctx.job_id, "generate_visuals", "background_still", still)
+
+    loop = artifact_path(ctx.job_id, "background_loop.mp4")
+    background.animate(still, loop)
+    ctx.background_loop_path = str(loop)
+    _record(ctx.job_id, "generate_visuals", "background_loop", loop)
+
+    portrait = artifact_path(ctx.job_id, "character_portrait.png")
+    get_portrait_generator().generate(ctx.character_ref, portrait)
+    ctx.character_portrait_path = str(portrait)
+    _record(ctx.job_id, "generate_visuals", "portrait", portrait)
+    return ctx.to_dict()
+
+
+@shared_task(**_TASK_OPTS)
+def lipsync_render(payload: dict) -> dict:
+    ctx = JobContext.from_dict(payload)
+    _advance(ctx.job_id, "lipsync_render")
+    out = artifact_path(ctx.job_id, "character_lipsync.mp4")
+    # Talking-head models sync best on the isolated vocal stem; body-animating
+    # models (OmniHuman) need the full mix to dance to the beat.
+    if settings.LIPSYNC_AUDIO_SOURCE == "mix":
+        sync_audio = _require_path(ctx.song_normalized_path)
+    else:
+        sync_audio = _require_path(ctx.vocal_stem_path)
+    get_lip_syncer().sync(
+        _require_path(ctx.character_portrait_path),
+        sync_audio,
+        out,
+    )
+    ctx.lipsync_path = str(out)
+    _record(ctx.job_id, "lipsync_render", "lipsync", out)
+    return ctx.to_dict()
+
+
+@shared_task(**_TASK_OPTS)
+def compose_video(payload: dict) -> dict:
+    ctx = JobContext.from_dict(payload)
+    _advance(ctx.job_id, "compose_video")
+    out = artifact_path(ctx.job_id, "output.mp4")
+    captions = Path(ctx.captions_path) if ctx.captions_path else None
+    compose_final(
+        background_loop=_require_path(ctx.background_loop_path),
+        character_clip=_require_path(ctx.lipsync_path),
+        audio=_require_path(ctx.song_normalized_path),
+        captions=captions,
+        out_path=out,
+        intro_zoom=settings.INTRO_PUNCH_ZOOM,
+        intro_seconds=settings.INTRO_PUNCH_SECONDS,
+        pulse_zoom=settings.PULSE_ZOOM,
+        pulse_interval=settings.PULSE_INTERVAL_SECONDS,
+        pulse_decay=settings.PULSE_DECAY_SECONDS,
+    )
+    ctx.output_path = str(out)
+    Job.objects.filter(pk=ctx.job_id).update(output_path=str(out))
+    _record(ctx.job_id, "compose_video", "output", out)
+    return ctx.to_dict()
+
+
+@shared_task(**_TASK_OPTS)
+def deliver_telegram(payload: dict) -> dict:
+    ctx = JobContext.from_dict(payload)
+    _advance(ctx.job_id, "deliver_telegram")
+    caption = _build_caption(ctx.theme, ctx.lyrics)
+    ctx.suggested_caption = caption
+
+    token = settings.TELEGRAM_BOT_TOKEN
+    chat_id = settings.TELEGRAM_CHAT_ID
+    if token and chat_id:
+        send_video(_require_path(ctx.output_path), caption, bot_token=token, chat_id=chat_id)
+        ctx.delivered = True
+        logger.info("Delivered job %s to Telegram.", ctx.job_id)
+    else:
+        # Not an error: with Telegram unconfigured the render still succeeds;
+        # the operator picks it up from media/jobs/<id>/output.mp4.
+        logger.info(
+            "Telegram not configured; job %s output at %s (delivery skipped).",
+            ctx.job_id,
+            ctx.output_path,
+        )
+
+    Job.objects.filter(pk=ctx.job_id).update(
+        status=Job.Status.DELIVERED,
+        suggested_caption=caption,
+    )
+    return ctx.to_dict()

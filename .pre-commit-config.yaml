@@ -1,0 +1,89 @@
+# Hooks enforced before code lands.
+#
+# Install (once per clone):     make hooks-install
+# Run on all files:             make hooks-run
+# Skip in an emergency:         git commit --no-verify   (don't habituate!)
+#
+# Two stages:
+#   * `commit` — fast checks (<2s). Format, lint, exception discipline,
+#                whitespace, large-file guard, secrets. Runs every commit.
+#   * `push`   — slow checks. mypy + full pytest with coverage gate, and the
+#                migrations-in-sync check. Runs only on `git push`.
+#
+# Coverage ratchet: the threshold in pyproject.toml's
+# `tool.pytest.ini_options.addopts` is the minimum. Never lower it. To raise
+# it, run `make coverage-ratchet`.
+
+default_install_hook_types: [pre-commit, pre-push]
+default_stages: [pre-commit]
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-added-large-files
+        args: ["--maxkb=500"]
+      - id: check-merge-conflict
+      - id: debug-statements
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    # Pinned in lockstep with the ``ruff==`` line in pyproject.toml so the
+    # three ruff installs (host venv, docker image, pre-commit's isolated
+    # venv) format identically. Mismatch produces the recurring "pre-commit
+    # Restored changes" thrash where each tool's reformat undoes the last.
+    rev: v0.15.14
+    hooks:
+      - id: ruff-format
+      - id: ruff
+        args: ["--fix", "--exit-non-zero-on-fix"]
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.4
+    hooks:
+      - id: gitleaks
+        # Catches API keys, tokens, .env-style secrets before they ever
+        # reach a remote. Highest-leverage hook here — the Replicate / fal /
+        # lip-sync / Telegram keys all live in .env.
+
+  - repo: local
+    hooks:
+      - id: exception-discipline
+        name: exception discipline (no swallow, no fallback)
+        entry: python scripts/check_exception_discipline.py
+        language: system
+        types: [python]
+        pass_filenames: false
+        # Rationale: AGENTS.md -> "Exception discipline".
+
+      - id: missing-migrations
+        name: Django models in sync with migrations
+        entry: scripts/check_missing_migrations.sh
+        language: system
+        files: '(models\.py|/migrations/.*\.py)$'
+        pass_filenames: false
+        stages: [pre-push]
+        # Pre-push only. Detects the classic "edited models, forgot
+        # makemigrations" footgun before push.
+
+      - id: mypy
+        name: mypy (type check)
+        entry: scripts/run_mypy.sh
+        language: system
+        types: [python]
+        pass_filenames: false
+        stages: [pre-push]
+        # Catches type errors that ruff doesn't. Config in pyproject.toml.
+
+      - id: pytest-coverage
+        name: pytest + coverage gate (ratchets up, never down)
+        entry: scripts/run_tests_with_coverage.sh
+        language: system
+        types: [python]
+        pass_filenames: false
+        stages: [pre-push]
+        # Threshold lives in pyproject.toml addopts. The wrapper script works
+        # whether or not docker is running.

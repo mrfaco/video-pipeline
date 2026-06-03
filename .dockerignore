@@ -1,0 +1,49 @@
+# Keep the build context lean — source is the only thing we send to the daemon.
+
+.git/
+.gitignore
+.github/
+
+# Local env and secrets — never bake into images
+.env
+.env.*
+!.env.example
+
+# Python build artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.uv-cache/
+
+# Test / coverage outputs
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.tox/
+.mypy_cache/
+.ruff_cache/
+
+# Editor / OS noise
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Docker
+docker-compose.override.yml
+
+# Docs we don't ship inside the container
+AGENTS.md
+
+# Generated locally — job artifacts and the SQLite db
+staticfiles/
+media/
+db.sqlite3*
+*.log

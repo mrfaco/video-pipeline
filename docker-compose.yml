@@ -1,0 +1,73 @@
+services:
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ``user:`` runs the container as the host UID/GID so any file the
+  # container writes back into the bind-mounted /app (the SQLite db file,
+  # migrations, media/jobs/<id>/ artifacts, __pycache__, .ruff_cache,
+  # .mypy_cache, .pytest_cache, coverage.xml…) lands owned by *you*, not
+  # root. The Makefile exports HOST_UID/HOST_GID automatically; running
+  # ``docker compose`` directly without those set falls back to root.
+  #
+  # There is no ``db`` service — job state lives in a SQLite file inside the
+  # bind-mounted /app (see DATABASE path in config/settings.py).
+  web:
+    build: .
+    user: "${HOST_UID:-0}:${HOST_GID:-0}"
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    env_file: .env
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # Celery worker wrapped in ``watchmedo`` so it restarts itself when any
+  # ``*.py`` file changes under /app. An already-running task continues with
+  # the *old* code until it finishes; the restart only affects what runs next.
+  celery_worker:
+    build: .
+    user: "${HOST_UID:-0}:${HOST_GID:-0}"
+    command: >
+      watchmedo auto-restart
+        --directory=/app
+        --pattern=*.py
+        --recursive
+        --signal SIGTERM
+        --
+        celery -A config worker -l info
+    volumes:
+      - .:/app
+    env_file: .env
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  celery_beat:
+    build: .
+    user: "${HOST_UID:-0}:${HOST_GID:-0}"
+    command: >
+      watchmedo auto-restart
+        --directory=/app
+        --pattern=*.py
+        --recursive
+        --signal SIGTERM
+        --
+        celery -A config beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    volumes:
+      - .:/app
+    env_file: .env
+    depends_on:
+      redis:
+        condition: service_healthy

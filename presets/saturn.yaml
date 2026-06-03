@@ -1,0 +1,11 @@
+# Saturn × a brainrot creature, dancing to a TikTok sound.
+# No `lyrics` → captions auto-skip (we don't know the TikTok audio's words).
+# The creature look comes from CHARACTER_STYLE_PROMPT; this picks the hybrid.
+
+song:
+  source: "https://vt.tiktok.com/ZSxKg7J4f/"
+
+theme: "the planet Saturn with its luminous rings, deep space starfield, cosmic, cinematic, ultra-detailed, dramatic lighting, no people"
+
+character:
+  description: "a creature that is a fusion of a saxophone, a toucan, and chunky human legs, with two giant googly eyes and a wide grinning toothy mouth"

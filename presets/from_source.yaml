@@ -1,0 +1,20 @@
+# Preset that fetches its song instead of using a local file.
+#
+# `song.source` is either a URL or a free-text "title artist" search query;
+# prepare_assets downloads it with yt-dlp into the job dir. The downloaded
+# audio is only a guide track (muted on post, TikTok licensed sound added at
+# upload), so it never ships publicly. Use exactly one of `audio` or `source`.
+
+song:
+  source: "Blinding Lights The Weeknd"
+  # Optional: trim to a hook (start-end) so the lip-sync render stays short
+  # and cheap. Accepts SS, M:SS, or H:MM:SS on each side.
+  clip: "0:48-1:06"
+  lyrics: |
+    I've been tryna call
+    I've been on my own for long enough
+
+theme: "neon synthwave city at night, rain, cinematic, ultra-detailed"
+
+character:
+  identity_asset: fixtures/character_portrait.png

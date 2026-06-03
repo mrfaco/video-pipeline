@@ -1,0 +1,19 @@
+# Demo preset — the smallest complete job definition.
+#
+# A "series" is one locked character crossed with a new (song + theme) per run.
+# Paths are resolved relative to the project root. With PROVIDER_MODE=fake the
+# song still drives timing, but every generative stage returns a fixture, so
+# this preset runs the whole pipeline end-to-end for free.
+
+song:
+  audio: fixtures/song.mp3
+  # Known lyrics for caption alignment. Omit to skip word-level captions.
+  lyrics: |
+    neon dreams in the rain tonight
+
+theme: "neon synthwave city at night, rain, cinematic, ultra-detailed"
+
+character:
+  # The locked character's identity asset — a portrait reference (or LoRA ref
+  # in real mode). Generated once, reused across every video in the series.
+  identity_asset: fixtures/character_portrait.png

@@ -1,0 +1,17 @@
+# Brujería (Gilberto Santa Rosa) × "dancing at the event horizon of a black hole".
+# Real run: the song is fetched + trimmed to a hook, the background is the
+# black hole, the character is a salsa singer lip-syncing the coro.
+
+song:
+  source: "Brujería Gilberto Santa Rosa"
+  # A ~16s hook so the lip-sync render stays short/cheap. Adjust freely.
+  clip: "1:04-1:20"   # the "Tu me hiciste brujeria" coro
+  # A hint for WhisperX (the actual captions come from transcribing the audio).
+  lyrics: |
+    Es brujería
+    lo que tú haces conmigo es brujería
+
+theme: "the event horizon of a black hole, swirling orange accretion disk, gravitational lensing, deep space starfield, cosmic, cinematic, ultra-detailed, dramatic rim light, no people"
+
+character:
+  description: "a charismatic Latin salsa singer, early 30s, sharp glittering suit, confident joyful smile, ultra realistic, studio lighting"
