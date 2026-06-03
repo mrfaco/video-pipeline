@@ -11,6 +11,7 @@ bookkeeping lives in ``stages.base.PipelineTask``. Artifacts are namespaced by
 from __future__ import annotations
 
 import logging
+import shutil
 from pathlib import Path
 
 from celery import shared_task
@@ -120,6 +121,7 @@ def prepare_assets(job_id: str) -> dict:
         character_ref=job.character_ref,
         lyrics=(job.lyrics or None),
         enable_captions=bool(settings.ENABLE_CAPTIONS and job.lyrics),
+        character_image=(job.character_image or None),
         song_path=str(song_src),
         song_normalized_path=str(downstream),
         song_full_path=str(full_normalized),
@@ -184,8 +186,14 @@ def generate_visuals(payload: dict) -> dict:
     ctx.background_loop_path = str(loop)
     _record(ctx.job_id, "generate_visuals", "background_loop", loop)
 
-    portrait = artifact_path(ctx.job_id, "character_portrait.png")
-    get_portrait_generator().generate(ctx.character_ref, portrait)
+    if ctx.character_image:
+        # Ready-made greenscreen portrait — use as-is, skip generation.
+        src = Path(ctx.character_image)
+        portrait = artifact_path(ctx.job_id, f"character_portrait{src.suffix}")
+        shutil.copyfile(src, portrait)
+    else:
+        portrait = artifact_path(ctx.job_id, "character_portrait.png")
+        get_portrait_generator().generate(ctx.character_ref, portrait)
     ctx.character_portrait_path = str(portrait)
     _record(ctx.job_id, "generate_visuals", "portrait", portrait)
     return ctx.to_dict()

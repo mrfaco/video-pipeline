@@ -15,7 +15,7 @@ from __future__ import annotations
 from pydantic import BaseModel, ConfigDict
 
 # Bump when the shape of JobContext changes (AGENTS.md §11 schema versioning).
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 class JobContext(BaseModel):
@@ -37,6 +37,9 @@ class JobContext(BaseModel):
     character_ref: str
     lyrics: str | None = None
     enable_captions: bool = True
+    # A ready-made greenscreen portrait to use as-is (preset ``character.image``),
+    # skipping portrait generation. None means generate from ``character_ref``.
+    character_image: str | None = None
     # Absolute path on disk to the source song (already copied into the job dir).
     song_path: str
 

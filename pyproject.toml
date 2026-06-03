@@ -98,7 +98,7 @@ python_files = ["test_*.py"]
 testpaths = ["tests"]
 # Pre-push hook runs `pytest --cov` against this threshold. Bump it (never
 # down) via `make coverage-ratchet` as more code lands.
-addopts = "--cov --cov-report=term-missing --cov-fail-under=75"
+addopts = "--cov --cov-report=term-missing --cov-fail-under=76"
 
 [tool.ruff]
 line-length = 100

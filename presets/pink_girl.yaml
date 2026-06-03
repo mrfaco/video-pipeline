@@ -1,0 +1,13 @@
+# Reusable character via `character.image`: a saved greenscreen portrait used
+# as-is (no generation), so "the same character, new song, new theme" is a
+# one-line preset. Swap song.source + theme to make a new video with her.
+#
+# The image MUST be on a green screen (compose chroma-keys it out).
+
+song:
+  source: "https://vt.tiktok.com/ZSxEtVRVG/"
+
+theme: "a lush enchanted forest, dense green trees, dappled golden sunlight, drifting mist, magical, cinematic, ultra-detailed, no people"
+
+character:
+  image: presets/characters/pink_girl.png

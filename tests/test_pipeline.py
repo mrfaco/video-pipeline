@@ -65,6 +65,52 @@ def test_load_preset_character_description_and_clip():
     assert preset["audio_source"] == "Brujería Gilberto Santa Rosa"
 
 
+def _image_preset(tmp_path) -> str:
+    p = tmp_path / "img.yaml"
+    p.write_text(
+        "song:\n  audio: fixtures/song.mp3\n"
+        "theme: a place\n"
+        "character:\n  image: fixtures/character_portrait.png\n",
+        encoding="utf-8",
+    )
+    return str(p)
+
+
+def test_load_preset_image_variant(tmp_path):
+    preset = load_preset(_image_preset(tmp_path))
+    assert preset["character_image"].endswith("character_portrait.png")
+    assert preset["character_ref"].endswith("character_portrait.png")
+
+
+def test_load_preset_rejects_two_character_options(tmp_path):
+    p = tmp_path / "bad.yaml"
+    p.write_text(
+        "song:\n  audio: fixtures/song.mp3\n"
+        "theme: a place\n"
+        "character:\n  image: fixtures/character_portrait.png\n  description: a person\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(PresetError):
+        load_preset(str(p))
+
+
+@pytest.mark.django_db
+def test_pipeline_uses_character_image_as_is(tmp_path):
+    with override_settings(
+        MEDIA_ROOT=tmp_path, PROVIDER_MODE="fake", TELEGRAM_BOT_TOKEN="", TELEGRAM_CHAT_ID=""
+    ):
+        job = create_job_from_preset(_image_preset(tmp_path))
+        assert job.character_image  # copied into the job dir at creation
+        run_job(job, eager=True)
+        job.refresh_from_db()
+        assert job.status == Job.Status.DELIVERED, job.error_detail
+        portrait = Artifact.objects.get(job=job, kind="portrait")
+        # Used as-is: byte-identical to the supplied greenscreen image.
+        assert (
+            Path(portrait.path).read_bytes() == Path("fixtures/character_portrait.png").read_bytes()
+        )
+
+
 @pytest.mark.django_db
 def test_create_job_from_source_preset_defers_download(tmp_path):
     with override_settings(MEDIA_ROOT=tmp_path):

@@ -33,6 +33,9 @@ class Job(models.Model):
     theme = models.TextField()
     lyrics = models.TextField(blank=True)
     character_ref = models.CharField(max_length=500)
+    # A ready-made greenscreen portrait to use as-is (preset character.image),
+    # instead of generating one. Copied into the job dir at creation.
+    character_image = models.CharField(max_length=1000, blank=True)
     # Local path to the copied/fetched source song (set once it's on disk).
     song_filename = models.CharField(max_length=500, blank=True)
     # A URL or "title artist" search query, when the preset gives song.source

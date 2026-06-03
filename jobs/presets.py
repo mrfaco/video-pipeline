@@ -66,17 +66,29 @@ def load_preset(path: str | Path) -> dict:
         if not audio_path.is_file():
             raise PresetError(f"Song audio not found: {audio_path}")
 
-    # Character identity: exactly one of an image file (identity_asset, used
-    # for fake mode / a future InstantID lock) or a text description (used as
-    # the FLUX prompt in real mode). character_ref carries whichever.
+    # Character identity: exactly one of
+    #   * image          — a ready-made greenscreen portrait, used as-is
+    #   * description     — text, generated via FLUX in real mode
+    #   * identity_asset  — a file for fake mode / a future InstantID lock
+    # character_ref carries the text/path; character_image is the use-as-is path.
     identity_asset = character.get("identity_asset")
     description = character.get("description")
-    if bool(identity_asset) == bool(description):
+    image = character.get("image")
+    chosen = [k for k in ("image", "description", "identity_asset") if character.get(k)]
+    if len(chosen) != 1:
         raise PresetError(
-            "Preset 'character' needs exactly one of 'identity_asset' (file) "
-            "or 'description' (text)."
+            "Preset 'character' needs exactly one of 'image' (ready portrait), "
+            "'description' (text), or 'identity_asset' (file)."
         )
-    if identity_asset:
+
+    character_image = ""
+    if image:
+        image_path = (settings.BASE_DIR / str(image)).resolve()
+        if not image_path.is_file():
+            raise PresetError(f"Character image not found: {image_path}")
+        character_image = str(image_path)
+        character_ref = str(image_path)
+    elif identity_asset:
         identity_path = (settings.BASE_DIR / str(identity_asset)).resolve()
         if not identity_path.is_file():
             raise PresetError(f"Character identity asset not found: {identity_path}")
@@ -99,6 +111,7 @@ def load_preset(path: str | Path) -> dict:
         "lyrics": (song.get("lyrics") or "").strip(),
         "theme": str(theme).strip(),
         "character_ref": character_ref,
+        "character_image": character_image,
     }
 
 
@@ -118,6 +131,14 @@ def create_job_from_preset(preset_path: str | Path) -> Job:
         song_source=preset["audio_source"],
         song_clip=preset["clip"],
     )
+    # Copy a ready-made character image into the job dir so the run is
+    # self-contained and immune to the source moving.
+    if preset["character_image"]:
+        img_src = Path(preset["character_image"])
+        img_dest = job_dir(job.job_id) / f"character_source{img_src.suffix}"
+        shutil.copyfile(img_src, img_dest)
+        job.character_image = str(img_dest)
+        job.save(update_fields=["character_image"])
     src = preset["audio_path"]
     if src is not None:
         # Copy the local song into the job dir so the run is immune to the
