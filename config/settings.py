@@ -188,8 +188,9 @@ CHARACTER_STYLE_PROMPT = env(
         # looking at". Needs a face+mouth (lip-sync) and limbs (dancing).
         "absolutely not a human, a bizarre surreal Italian-brainrot creature, "
         "absurd object-animal hybrid with stubby limbs, full body dancing energetically "
-        "mid-motion, two enormous googly eyes, a wide expressive toothy mouth, "
-        "glossy hyper-real 3D render, cursed AI dreamcore, hyper-saturated clashing colors, "
+        "mid-motion, two enormous googly eyes, an expressive human-like mouth with clear "
+        "lips for accurate lip-sync, glossy hyper-real 3D render, cursed AI dreamcore, "
+        "hyper-saturated clashing colors, "
         "maximalist chaotic, deeply weird scroll-stopping pattern-interrupt, "
         "sharp studio lighting, "
         # Mandatory — the compose stage chroma-keys this out.
@@ -208,16 +209,20 @@ OMNIHUMAN_RESOLUTION = env("OMNIHUMAN_RESOLUTION", default="1080p")
 OMNIHUMAN_PROMPT = env(
     "OMNIHUMAN_PROMPT",
     default=(
-        "performing with maximum intensity the entire time, dancing hard and nonstop "
-        "with big full-body movements, bouncing to the beat, arms and hips moving, "
-        "energetic showmanship, never standing still, exaggerated theatrical motion, "
-        "singing passionately"
+        # Content-neutral (works for spoken or sung audio) + max motion.
+        "lip-syncing the audio accurately and expressively, mouth matching the words, "
+        "performing with maximum energy, dancing hard and nonstop with big full-body "
+        "movements, bouncing to the beat, arms and hips moving, energetic showmanship, "
+        "never standing still"
     ),
 )
-# Which audio the lip-sync model receives: "vocals" (isolated stem — best for
-# talking-head mouth accuracy, e.g. Hedra) or "mix" (full clip with the beat —
-# needed so a body-animating model like OmniHuman dances to the rhythm).
-LIPSYNC_AUDIO_SOURCE = env("LIPSYNC_AUDIO_SOURCE", default="mix")
+# Which audio the lip-sync model receives: "vocals" (isolated stem — clean
+# voice, so lip-sync stays accurate even when the song is music-heavy and the
+# vocals are buried in the mix) or "mix" (full clip — more beat-driven body
+# motion, but the mouth can track the music instead of the voice). The viewer
+# always hears the full mix in the mux; this only affects what the model syncs
+# to. Default "vocals" because reliable lip-sync beats marginally better dance.
+LIPSYNC_AUDIO_SOURCE = env("LIPSYNC_AUDIO_SOURCE", default="vocals")
 HEDRA_API_KEY = env("HEDRA_API_KEY", default="")
 # Hedra audio-driven character model. Default is together/hedra-character-3
 # (verified via GET /models: type=video, requires_audio_input, supports 9:16
