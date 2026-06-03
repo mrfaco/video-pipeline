@@ -188,9 +188,12 @@ CHARACTER_STYLE_PROMPT = env(
         # looking at". Needs a face+mouth (lip-sync) and limbs (dancing).
         "absolutely not a human, a bizarre surreal Italian-brainrot creature, "
         "absurd object-animal hybrid with stubby limbs, full body dancing energetically "
-        "mid-motion, two enormous googly eyes, an expressive human-like mouth with clear "
-        "lips for accurate lip-sync, glossy hyper-real 3D render, cursed AI dreamcore, "
-        "hyper-saturated clashing colors, "
+        "mid-motion, two enormous googly eyes, a relaxed mostly-closed mouth with clear "
+        "defined lips (NOT a fixed wide-open grin) so it can lip-sync, glossy hyper-real "
+        "3D render, cursed AI dreamcore, hyper-saturated clashing colors, "
+        # The creature MUST avoid green — green is chroma-keyed out and would
+        # leave transparent holes in the character.
+        "the creature itself uses vivid NON-green colors only (no green parts), "
         "maximalist chaotic, deeply weird scroll-stopping pattern-interrupt, "
         "sharp studio lighting, "
         # Mandatory — the compose stage chroma-keys this out.
