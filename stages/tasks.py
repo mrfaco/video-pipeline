@@ -68,6 +68,18 @@ def _require_path(value: str | None) -> Path:
     return Path(value)
 
 
+def _resolve_portrait(job_id: str, ref: str, image: str | None, basename: str) -> Path:
+    """A ready-made greenscreen image (copy as-is) or a generated portrait."""
+    if image:
+        src = Path(image)
+        portrait = artifact_path(job_id, f"{basename}{src.suffix}")
+        shutil.copyfile(src, portrait)
+        return portrait
+    portrait = artifact_path(job_id, f"{basename}.png")
+    get_portrait_generator().generate(ref, portrait)
+    return portrait
+
+
 def _build_caption(theme: str, lyrics: str | None) -> str:
     """A suggested TikTok caption + hashtags from the theme/lyrics.
 
@@ -122,6 +134,8 @@ def prepare_assets(job_id: str) -> dict:
         lyrics=(job.lyrics or None),
         enable_captions=bool(settings.ENABLE_CAPTIONS and job.lyrics),
         character_image=(job.character_image or None),
+        backup_character_ref=(job.backup_character_ref or None),
+        backup_character_image=(job.backup_character_image or None),
         song_path=str(song_src),
         song_normalized_path=str(downstream),
         song_full_path=str(full_normalized),
@@ -186,16 +200,22 @@ def generate_visuals(payload: dict) -> dict:
     ctx.background_loop_path = str(loop)
     _record(ctx.job_id, "generate_visuals", "background_loop", loop)
 
-    if ctx.character_image:
-        # Ready-made greenscreen portrait — use as-is, skip generation.
-        src = Path(ctx.character_image)
-        portrait = artifact_path(ctx.job_id, f"character_portrait{src.suffix}")
-        shutil.copyfile(src, portrait)
-    else:
-        portrait = artifact_path(ctx.job_id, "character_portrait.png")
-        get_portrait_generator().generate(ctx.character_ref, portrait)
+    portrait = _resolve_portrait(
+        ctx.job_id, ctx.character_ref, ctx.character_image, "character_portrait"
+    )
     ctx.character_portrait_path = str(portrait)
     _record(ctx.job_id, "generate_visuals", "portrait", portrait)
+
+    # Backup character (trio) — generated/used the same way.
+    if ctx.backup_character_ref or ctx.backup_character_image:
+        backup = _resolve_portrait(
+            ctx.job_id,
+            ctx.backup_character_ref or "",
+            ctx.backup_character_image,
+            "backup_portrait",
+        )
+        ctx.backup_portrait_path = str(backup)
+        _record(ctx.job_id, "generate_visuals", "backup_portrait", backup)
     return ctx.to_dict()
 
 
@@ -210,13 +230,17 @@ def lipsync_render(payload: dict) -> dict:
         sync_audio = _require_path(ctx.song_normalized_path)
     else:
         sync_audio = _require_path(ctx.vocal_stem_path)
-    get_lip_syncer().sync(
-        _require_path(ctx.character_portrait_path),
-        sync_audio,
-        out,
-    )
+    syncer = get_lip_syncer()
+    syncer.sync(_require_path(ctx.character_portrait_path), sync_audio, out)
     ctx.lipsync_path = str(out)
     _record(ctx.job_id, "lipsync_render", "lipsync", out)
+
+    # Backup character (trio) — synced to the same audio so they're in step.
+    if ctx.backup_portrait_path:
+        backup_out = artifact_path(ctx.job_id, "backup_lipsync.mp4")
+        syncer.sync(_require_path(ctx.backup_portrait_path), sync_audio, backup_out)
+        ctx.backup_lipsync_path = str(backup_out)
+        _record(ctx.job_id, "lipsync_render", "backup_lipsync", backup_out)
     return ctx.to_dict()
 
 
@@ -226,9 +250,11 @@ def compose_video(payload: dict) -> dict:
     _advance(ctx.job_id, "compose_video")
     out = artifact_path(ctx.job_id, "output.mp4")
     captions = Path(ctx.captions_path) if ctx.captions_path else None
+    backup_clip = Path(ctx.backup_lipsync_path) if ctx.backup_lipsync_path else None
     compose_final(
         background_loop=_require_path(ctx.background_loop_path),
         character_clip=_require_path(ctx.lipsync_path),
+        backup_clip=backup_clip,
         audio=_require_path(ctx.song_normalized_path),
         captions=captions,
         out_path=out,

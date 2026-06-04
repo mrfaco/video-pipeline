@@ -94,6 +94,39 @@ def test_load_preset_rejects_two_character_options(tmp_path):
         load_preset(str(p))
 
 
+def test_load_preset_backup_variant():
+    preset = load_preset("presets/trio.yaml")
+    assert preset["character_image"].endswith("pink_girl.png")
+    assert preset["backup_character_ref"].startswith("a bizarre")
+
+
+def _trio_preset(tmp_path) -> str:
+    p = tmp_path / "trio.yaml"
+    p.write_text(
+        "song:\n  audio: fixtures/song.mp3\n"
+        "theme: a place\n"
+        "character:\n  image: fixtures/character_portrait.png\n"
+        "backup:\n  image: fixtures/character_portrait.png\n",
+        encoding="utf-8",
+    )
+    return str(p)
+
+
+@pytest.mark.django_db
+def test_pipeline_trio_renders_backup(tmp_path):
+    with override_settings(
+        MEDIA_ROOT=tmp_path, PROVIDER_MODE="fake", TELEGRAM_BOT_TOKEN="", TELEGRAM_CHAT_ID=""
+    ):
+        job = create_job_from_preset(_trio_preset(tmp_path))
+        assert job.backup_character_image  # backup copied at creation
+        run_job(job, eager=True)
+        job.refresh_from_db()
+        assert job.status == Job.Status.DELIVERED, job.error_detail
+        kinds = set(Artifact.objects.filter(job=job).values_list("kind", flat=True))
+        assert {"backup_portrait", "backup_lipsync", "output"} <= kinds
+        assert Path(job.output_path).is_file()
+
+
 @pytest.mark.django_db
 def test_pipeline_uses_character_image_as_is(tmp_path):
     with override_settings(

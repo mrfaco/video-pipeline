@@ -90,6 +90,13 @@ def _escape_subtitles_path(path: Path) -> str:
     return text.replace(",", "\\,")
 
 
+# Trio layout (boss + two flanking backups), as fractions of the canvas height.
+_BOSS_HEIGHT_FRAC = 0.64
+_FLANK_HEIGHT_FRAC = 0.41
+_FLANK_PEEK_PX = 40  # how far the flanks sit beyond the side edges
+_BOTTOM_MARGIN_PX = 30
+
+
 def compose_final(
     *,
     background_loop: Path,
@@ -97,6 +104,7 @@ def compose_final(
     audio: Path,
     captions: Path | None,
     out_path: Path,
+    backup_clip: Path | None = None,
     width: int = 1080,
     height: int = 1920,
     chroma_color: str = "0x00FF00",
@@ -107,6 +115,10 @@ def compose_final(
     pulse_decay: float = 0.28,
 ) -> Path:
     """Render the final 9:16 mp4 and return ``out_path``.
+
+    With ``backup_clip`` set, composes the viral TRIO: a large center "boss"
+    (``character_clip``) flanked by two smaller backups (``backup_clip``, the
+    right one mirrored). Without it, a single centered character.
 
     Two scroll-stop motion effects, both visual-only (centered crop+rescale, so
     audio/lip-sync timing is never touched):
@@ -127,26 +139,44 @@ def compose_final(
     boomerang = out_path.with_name(f"{out_path.stem}_boomerang.mp4")
     _make_boomerang(Path(background_loop), boomerang)
 
-    # Background: stream-looped boomerang, scaled to cover then cropped to the
-    # exact canvas, square pixels.
+    key = f"chromakey={chroma_color}:0.30:0.10"
     bg_chain = (
         f"[0:v]scale={width}:{height}:force_original_aspect_ratio=increase,"
         f"crop={width}:{height},setsar=1[bg]"
     )
-    # Character: chromakey out the green screen, then scale to fit the canvas
-    # preserving aspect (no upscale past the frame), keeping alpha.
-    fg_chain = (
-        f"[1:v]chromakey={chroma_color}:0.30:0.10,"
-        f"scale={width}:{height}:force_original_aspect_ratio=decrease[fg]"
-    )
-    overlay = "[bg][fg]overlay=(W-w)/2:(H-h)/2"
 
-    filter_complex = f"{bg_chain};{fg_chain};{overlay}"
+    # Inputs: bg, boss, [backup], audio. The boss/backup are OmniHuman renders
+    # of the same audio, so they match its length; the bg is stream-looped.
+    inputs = ["-stream_loop", "-1", "-i", str(boomerang), "-i", str(character_clip)]
+    if backup_clip is not None:
+        inputs += ["-i", str(backup_clip)]
+    inputs += ["-i", str(audio)]
+    audio_idx = 3 if backup_clip is not None else 2
+
+    if backup_clip is not None:
+        boss_h = int(height * _BOSS_HEIGHT_FRAC)
+        flank_h = int(height * _FLANK_HEIGHT_FRAC)
+        fg = (
+            f"[2:v]{key},split[bk1][bk2];"
+            f"[bk1]scale=-1:{flank_h}[lf];"
+            f"[bk2]scale=-1:{flank_h},hflip[rf];"
+            f"[1:v]{key},scale=-1:{boss_h}[boss];"
+            f"[bg][lf]overlay=x=-{_FLANK_PEEK_PX}:y=H-h-{_BOTTOM_MARGIN_PX}[t1];"
+            f"[t1][rf]overlay=x=W-w+{_FLANK_PEEK_PX}:y=H-h-{_BOTTOM_MARGIN_PX}[t2];"
+            f"[t2][boss]overlay=x=(W-w)/2:y=H-h-10[comp]"
+        )
+    else:
+        fg = (
+            f"[1:v]{key},scale={width}:{height}:force_original_aspect_ratio=decrease[fg];"
+            f"[bg][fg]overlay=(W-w)/2:(H-h)/2[comp]"
+        )
+
+    filter_complex = f"{bg_chain};{fg}"
     if captions is not None:
         escaped = _escape_subtitles_path(Path(captions))
-        filter_complex += f"[ov];[ov]subtitles='{escaped}'[pre]"
+        filter_complex += f";[comp]subtitles='{escaped}'[pre]"
     else:
-        filter_complex += "[pre]"
+        filter_complex += ";[comp]null[pre]"
 
     # Build the per-frame zoom factor from whichever motion effects are on.
     # Centered crop by iw/zoom (crop centers by default), then rescale. Commas
@@ -175,20 +205,13 @@ def compose_final(
     cmd = [
         "ffmpeg",
         "-y",
-        "-stream_loop",
-        "-1",
-        "-i",
-        str(boomerang),
-        "-i",
-        str(character_clip),
-        "-i",
-        str(audio),
+        *inputs,
         "-filter_complex",
         filter_complex,
         "-map",
         "[v]",
         "-map",
-        "2:a",
+        f"{audio_idx}:a",
         "-t",
         f"{duration:.3f}",
         *_VIDEO_ENCODE,

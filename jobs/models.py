@@ -36,6 +36,10 @@ class Job(models.Model):
     # A ready-made greenscreen portrait to use as-is (preset character.image),
     # instead of generating one. Copied into the job dir at creation.
     character_image = models.CharField(max_length=1000, blank=True)
+    # Optional backup character (preset `backup:`) → trio layout. Same shape as
+    # the main character: a text ref and/or a ready-made image.
+    backup_character_ref = models.CharField(max_length=500, blank=True)
+    backup_character_image = models.CharField(max_length=1000, blank=True)
     # Local path to the copied/fetched source song (set once it's on disk).
     song_filename = models.CharField(max_length=500, blank=True)
     # A URL or "title artist" search query, when the preset gives song.source

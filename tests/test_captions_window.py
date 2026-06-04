@@ -30,6 +30,20 @@ def _has_video(path: Path) -> bool:
     return "video" in out.stdout
 
 
+def test_compose_trio_renders(tmp_path):
+    # With backup_clip set, compose lays out the trio and still produces a
+    # valid 9:16 mp4 (the fixture character is reused as boss + backup).
+    out = compose_final(
+        background_loop=Path("fixtures/background_loop.mp4"),
+        character_clip=Path("fixtures/character_lipsync.mp4"),
+        backup_clip=Path("fixtures/character_lipsync.mp4"),
+        audio=Path("fixtures/song.mp3"),
+        captions=None,
+        out_path=tmp_path / "trio.mp4",
+    )
+    assert out.is_file() and _has_video(out)
+
+
 def test_intro_zoom_punch_renders(tmp_path):
     # With the punch enabled, compose still produces a valid 9:16 mp4 and the
     # duration is unchanged (visual-only effect).
