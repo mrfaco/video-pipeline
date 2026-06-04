@@ -190,6 +190,25 @@ def test_full_pipeline_produces_video(tmp_path):
 
 
 @pytest.mark.django_db
+def test_pipeline_motion_first_mode(tmp_path):
+    # motion_first runs Kling (animate) -> video lip-sync -> matte; in fake mode
+    # those are fixture/passthrough/ffmpeg, so the whole chain still produces a
+    # video.
+    with override_settings(
+        MEDIA_ROOT=tmp_path,
+        PROVIDER_MODE="fake",
+        MOTION_MODE="motion_first",
+        TELEGRAM_BOT_TOKEN="",
+        TELEGRAM_CHAT_ID="",
+    ):
+        job = create_job_from_preset(PRESET)
+        run_job(job, eager=True)
+        job.refresh_from_db()
+        assert job.status == Job.Status.DELIVERED, job.error_detail
+        assert _ffprobe_has_video(Path(job.output_path))
+
+
+@pytest.mark.django_db
 def test_pipeline_skips_captions_without_lyrics(tmp_path):
     with override_settings(
         MEDIA_ROOT=tmp_path,

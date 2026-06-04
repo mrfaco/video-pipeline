@@ -66,9 +66,10 @@ def _fake_fal(monkeypatch, result):
 
 @override_settings(FAL_KEY="k")
 def test_real_matter_downloads_result(tmp_path, monkeypatch):
-    _fake_fal(monkeypatch, {"video": {"url": "https://v/out.webm"}})
+    _fake_fal(monkeypatch, {"video": {"url": "https://v/out.mov"}})
     out = RealFalMatter().matte(tmp_path / "in.mp4", tmp_path / "out.webm")
-    assert out == tmp_path / "out.webm"
+    # Default output is ProRes .mov, so the returned path carries that suffix.
+    assert out == tmp_path / "out.mov"
 
 
 @override_settings(FAL_KEY="k")

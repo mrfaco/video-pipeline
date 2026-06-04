@@ -26,13 +26,13 @@ from core.storage import artifact_path
 from delivery.telegram import send_video
 from jobs.models import Artifact, Job
 from providers.base import (
-    LipSyncer,
-    Matter,
+    get_animator,
     get_background_generator,
     get_caption_aligner,
     get_lip_syncer,
     get_matter,
     get_portrait_generator,
+    get_video_lip_syncer,
     get_vocal_separator,
 )
 from stages.base import PipelineTask
@@ -222,26 +222,30 @@ def generate_visuals(payload: dict) -> dict:
     return ctx.to_dict()
 
 
-def _render_character(
-    syncer: LipSyncer,
-    matter: Matter | None,
-    portrait: Path,
-    audio: Path,
-    job_id: str,
-    name: str,
-) -> Path:
-    """Lip-sync the portrait, then (if matting is on) cut it out with alpha.
+def _render_character(portrait: Path, audio: Path, job_id: str, name: str) -> Path:
+    """Animate the portrait to the audio, then (if matting is on) cut it out.
 
-    Matting replaces chroma-key: BiRefNet segments the subject, so green
-    clothes / creatures / thin limbs stay solid. Returns the composite-ready
-    clip (an alpha clip when matted — the matter picks the container — else the
-    raw greenscreen .mp4).
+    Two modes (``settings.MOTION_MODE``):
+      * ``lipsync`` — OmniHuman on the static portrait (accurate mouth).
+      * ``motion_first`` — Kling animates the body, then a video lip-sync maps
+        the mouth onto the moving clip (chaotic motion, mouth approximate).
+    Matting (BiRefNet) then segments the subject so any colour / thin limb
+    stays solid. Returns the composite-ready clip (alpha when matted).
     """
     raw = artifact_path(job_id, f"{name}_raw.mp4")
-    syncer.sync(portrait, audio, raw)
-    if matter is None:
+    if settings.MOTION_MODE == "motion_first":
+        moving = artifact_path(job_id, f"{name}_motion.mp4")
+        get_animator().animate(portrait, moving)
+        # Kling caps at KLING_DURATION; clip the audio to match before syncing.
+        capped = artifact_path(job_id, f"{name}_audio.mp3")
+        clip_audio(audio, capped, 0.0, float(settings.KLING_DURATION))
+        get_video_lip_syncer().sync_video(moving, capped, raw)
+    else:
+        get_lip_syncer().sync(portrait, audio, raw)
+
+    if not settings.MATTING_ENABLED:
         return raw
-    return matter.matte(raw, artifact_path(job_id, f"{name}.webm"))
+    return get_matter().matte(raw, artifact_path(job_id, f"{name}.webm"))
 
 
 @shared_task(**_TASK_OPTS)
@@ -255,16 +259,8 @@ def lipsync_render(payload: dict) -> dict:
     else:
         sync_audio = _require_path(ctx.vocal_stem_path)
 
-    syncer = get_lip_syncer()
-    matter = get_matter() if settings.MATTING_ENABLED else None
-
     out = _render_character(
-        syncer,
-        matter,
-        _require_path(ctx.character_portrait_path),
-        sync_audio,
-        ctx.job_id,
-        "character_lipsync",
+        _require_path(ctx.character_portrait_path), sync_audio, ctx.job_id, "character_lipsync"
     )
     ctx.lipsync_path = str(out)
     _record(ctx.job_id, "lipsync_render", "lipsync", out)
@@ -272,12 +268,7 @@ def lipsync_render(payload: dict) -> dict:
     # Backup character (trio) — synced to the same audio so they're in step.
     if ctx.backup_portrait_path:
         backup_out = _render_character(
-            syncer,
-            matter,
-            _require_path(ctx.backup_portrait_path),
-            sync_audio,
-            ctx.job_id,
-            "backup_lipsync",
+            _require_path(ctx.backup_portrait_path), sync_audio, ctx.job_id, "backup_lipsync"
         )
         ctx.backup_lipsync_path = str(backup_out)
         _record(ctx.job_id, "lipsync_render", "backup_lipsync", backup_out)

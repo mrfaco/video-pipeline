@@ -221,6 +221,29 @@ OMNIHUMAN_PROMPT = env(
         "showmanship, never standing still"
     ),
 )
+# Animation approach:
+#   "lipsync"      — OmniHuman on the static portrait (accurate mouth, modest
+#                    body motion — the "animated photo" look).
+#   "motion_first" — Kling animates the portrait with aggressive full-body
+#                    motion, THEN a video lip-sync maps the mouth onto the
+#                    moving clip. Chaotic viral energy; mouth is close, not
+#                    phoneme-perfect. Two generation calls per character, and
+#                    bounded to KLING_DURATION (Kling's max clip length).
+MOTION_MODE = env("MOTION_MODE", default="lipsync")
+KLING_MODEL = env("KLING_MODEL", default="fal-ai/kling-video/v2.5-turbo/pro/image-to-video")
+KLING_DURATION = env("KLING_DURATION", default="10")  # "5" or "10" seconds
+KLING_CFG = env.float("KLING_CFG", default=0.8)
+KLING_MOTION_PROMPT = env(
+    "KLING_MOTION_PROMPT",
+    default=(
+        "the character aggressively bobs its head up and down with maximum momentum, "
+        "bouncing hard side to side, explosive energetic dancing, jumping, arms swinging, "
+        "kinetic high-energy motion, mouth snapping open and shut rhythmically to a heavy beat"
+    ),
+)
+# Video lip-sync (maps a mouth onto an already-moving clip) for motion_first.
+VIDEO_LIPSYNC_MODEL = env("VIDEO_LIPSYNC_MODEL", default="fal-ai/sync-lipsync/v2")
+
 # Matting: after lip-sync, cut the character out by SUBJECT segmentation
 # (BiRefNet on fal) instead of chroma-keying green — so green clothes, green
 # creatures, and thin limbs stay solid. The model caps at MATTING_MAX_FRAMES,
@@ -228,7 +251,10 @@ OMNIHUMAN_PROMPT = env(
 MATTING_ENABLED = env.bool("MATTING_ENABLED", default=True)
 MATTING_MODEL = env("MATTING_MODEL", default="fal-ai/birefnet/v2/video")
 MATTING_MODEL_VARIANT = env("MATTING_MODEL_VARIANT", default="Matting")
-MATTING_OUTPUT_TYPE = env("MATTING_OUTPUT_TYPE", default="VP9 (.webm)")
+# ProRes 4444 .mov, not VP9 .webm: webm alpha is a secondary stream that ffmpeg
+# decodes inconsistently across frames (intermittent opaque-black boxes in the
+# composite). ProRes is all-intra with a reliable alpha plane.
+MATTING_OUTPUT_TYPE = env("MATTING_OUTPUT_TYPE", default="PRORES4444 (.mov)")
 MATTING_MAX_FRAMES = env.int("MATTING_MAX_FRAMES", default=512)
 
 # Which audio the lip-sync model receives: "vocals" (isolated stem — clean

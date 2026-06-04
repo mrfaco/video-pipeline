@@ -119,6 +119,37 @@ class RealHedraLipSyncer:
         return _download(url, out_path)
 
 
+class RealSyncVideoLipSyncer:
+    """Video lip-sync (mouth onto an already-moving clip) via Sync on fal.
+
+    Used by the motion_first workflow after Kling has animated the body. Takes
+    a video + audio (both uploaded to fal) and returns the lip-synced video.
+    Uses ``FAL_KEY`` since the model is fal-hosted.
+    """
+
+    def __init__(self) -> None:
+        if not settings.FAL_KEY:
+            raise ProviderConfigError("FAL_KEY is empty; required for RealSyncVideoLipSyncer.")
+        self._model = settings.VIDEO_LIPSYNC_MODEL
+
+    def sync_video(self, video_path: Path, audio_path: Path, out_path: Path) -> Path:
+        import fal_client  # noqa: PLC0415  (heavy optional SDK, real-mode only)
+
+        video_url = fal_client.upload_file(Path(video_path))
+        audio_url = fal_client.upload_file(Path(audio_path))
+        result = fal_client.subscribe(
+            self._model,
+            arguments={"video_url": video_url, "audio_url": audio_url},
+        )
+        if not isinstance(result, dict):
+            raise ProviderConfigError(f"video lip-sync result is not a dict: {result!r}")
+        video = result.get("video")
+        out_url = video.get("url") if isinstance(video, dict) else video
+        if not isinstance(out_url, str) or not out_url:
+            raise ProviderConfigError(f"video lip-sync result missing a URL: {result!r}")
+        return _download(out_url, out_path)
+
+
 class RealOmniHumanLipSyncer:
     """Full-body singing+dancing avatar via Bytedance OmniHuman 1.5 on fal.
 

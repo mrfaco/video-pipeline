@@ -67,6 +67,22 @@ class FakeLipSyncer:
         return _copy_fixture("character_lipsync.mp4", out_path)
 
 
+class FakeAnimator:
+    """Returns the bundled greenscreen clip as the 'animated' (moving) video."""
+
+    def animate(self, image_path: Path, out_path: Path) -> Path:
+        return _copy_fixture("character_lipsync.mp4", out_path)
+
+
+class FakeVideoLipSyncer:
+    """Passthrough: returns the moving clip unchanged (no real lip-sync)."""
+
+    def sync_video(self, video_path: Path, audio_path: Path, out_path: Path) -> Path:
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(video_path, out_path)
+        return out_path
+
+
 class FakeMatter:
     """Locally chroma-keys the (pure-green) fixture into an alpha clip.
 

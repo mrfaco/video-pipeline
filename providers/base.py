@@ -80,6 +80,20 @@ class Matter(Protocol):
         ...
 
 
+@runtime_checkable
+class Animator(Protocol):
+    def animate(self, image_path: Path, out_path: Path) -> Path:
+        """High-motion image->video (Kling): the character dances, no lip-sync."""
+        ...
+
+
+@runtime_checkable
+class VideoLipSyncer(Protocol):
+    def sync_video(self, video_path: Path, audio_path: Path, out_path: Path) -> Path:
+        """Map a mouth onto an already-moving video, synced to ``audio_path``."""
+        ...
+
+
 def _is_fake() -> bool:
     return settings.PROVIDER_MODE == "fake"
 
@@ -132,6 +146,26 @@ def get_matter() -> Matter:
     from providers.matting import RealFalMatter  # noqa: PLC0415
 
     return RealFalMatter()
+
+
+def get_animator() -> Animator:
+    if _is_fake():
+        from providers.fakes import FakeAnimator  # noqa: PLC0415
+
+        return FakeAnimator()
+    from providers.motion import RealKlingAnimator  # noqa: PLC0415
+
+    return RealKlingAnimator()
+
+
+def get_video_lip_syncer() -> VideoLipSyncer:
+    if _is_fake():
+        from providers.fakes import FakeVideoLipSyncer  # noqa: PLC0415
+
+        return FakeVideoLipSyncer()
+    from providers.lipsync import RealSyncVideoLipSyncer  # noqa: PLC0415
+
+    return RealSyncVideoLipSyncer()
 
 
 def get_lip_syncer() -> LipSyncer:

@@ -22,6 +22,14 @@ from providers.base import ProviderConfigError
 
 _HTTP_TIMEOUT = httpx.Timeout(600.0)
 
+# File extension per BiRefNet output type (the matte container the model returns).
+_EXT_BY_OUTPUT = {
+    "PRORES4444 (.mov)": ".mov",
+    "VP9 (.webm)": ".webm",
+    "X264 (.mp4)": ".mp4",
+    "GIF (.gif)": ".gif",
+}
+
 
 class MattingError(RuntimeError):
     """The matting model could not process the clip."""
@@ -109,4 +117,6 @@ class RealFalMatter:
         out_url = video.get("url") if isinstance(video, dict) else video
         if not isinstance(out_url, str) or not out_url:
             raise MattingError(f"matting result missing a video URL: {result!r}")
-        return _download(out_url, out_path)
+        # Write with the container's real extension (e.g. .mov for ProRes).
+        dest = Path(out_path).with_suffix(_EXT_BY_OUTPUT.get(self._output_type, ".mov"))
+        return _download(out_url, dest)

@@ -199,11 +199,11 @@ def compose_final(
     else:
         filter_complex += ";[pre]null[v]"
 
-    # Bound the output to the audio length explicitly. ``-shortest`` alone is
-    # unreliable with an infinite ``-stream_loop`` background — it overshoots,
-    # leaving the lip-sync running past the audio (a tail desync). ``-t`` makes
-    # the duration deterministic so lips, captions, and audio stay locked.
-    duration = _probe_duration(Path(audio))
+    # Bound the output explicitly (``-shortest`` is unreliable with an infinite
+    # ``-stream_loop`` background — it overshoots). Use the shorter of the audio
+    # and the character clip: in motion_first the Kling character clip is capped
+    # to KLING_DURATION (< the song), so it bounds the video.
+    duration = min(_probe_duration(Path(audio)), _probe_duration(Path(character_clip)))
 
     cmd = [
         "ffmpeg",
