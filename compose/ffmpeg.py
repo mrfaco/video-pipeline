@@ -105,6 +105,7 @@ def compose_final(
     captions: Path | None,
     out_path: Path,
     backup_clip: Path | None = None,
+    matted: bool = False,
     width: int = 1080,
     height: int = 1920,
     chroma_color: str = "0x00FF00",
@@ -139,7 +140,9 @@ def compose_final(
     boomerang = out_path.with_name(f"{out_path.stem}_boomerang.mp4")
     _make_boomerang(Path(background_loop), boomerang)
 
-    key = f"chromakey={chroma_color}:0.30:0.10"
+    # Matted clips already carry alpha (subject cut out) — overlay them
+    # directly. Un-matted clips are on a green screen and get chroma-keyed.
+    key = "" if matted else f"chromakey={chroma_color}:0.30:0.10,"
     bg_chain = (
         f"[0:v]scale={width}:{height}:force_original_aspect_ratio=increase,"
         f"crop={width}:{height},setsar=1[bg]"
@@ -157,17 +160,17 @@ def compose_final(
         boss_h = int(height * _BOSS_HEIGHT_FRAC)
         flank_h = int(height * _FLANK_HEIGHT_FRAC)
         fg = (
-            f"[2:v]{key},split[bk1][bk2];"
+            f"[2:v]{key}split[bk1][bk2];"
             f"[bk1]scale=-1:{flank_h}[lf];"
             f"[bk2]scale=-1:{flank_h},hflip[rf];"
-            f"[1:v]{key},scale=-1:{boss_h}[boss];"
+            f"[1:v]{key}scale=-1:{boss_h}[boss];"
             f"[bg][lf]overlay=x=-{_FLANK_PEEK_PX}:y=H-h-{_BOTTOM_MARGIN_PX}[t1];"
             f"[t1][rf]overlay=x=W-w+{_FLANK_PEEK_PX}:y=H-h-{_BOTTOM_MARGIN_PX}[t2];"
             f"[t2][boss]overlay=x=(W-w)/2:y=H-h-10[comp]"
         )
     else:
         fg = (
-            f"[1:v]{key},scale={width}:{height}:force_original_aspect_ratio=decrease[fg];"
+            f"[1:v]{key}scale={width}:{height}:force_original_aspect_ratio=decrease[fg];"
             f"[bg][fg]overlay=(W-w)/2:(H-h)/2[comp]"
         )
 

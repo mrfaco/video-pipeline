@@ -212,13 +212,25 @@ OMNIHUMAN_RESOLUTION = env("OMNIHUMAN_RESOLUTION", default="1080p")
 OMNIHUMAN_PROMPT = env(
     "OMNIHUMAN_PROMPT",
     default=(
-        # Content-neutral (works for spoken or sung audio) + max motion.
-        "lip-syncing the audio accurately and expressively, mouth matching the words, "
-        "performing with maximum energy, dancing hard and nonstop with big full-body "
-        "movements, bouncing to the beat, arms and hips moving, energetic showmanship, "
-        "never standing still"
+        # Content-neutral (works for spoken or sung audio) + AGGRESSIVE motion
+        # (directional, high-momentum phrasing per the high-motion playbook).
+        "lip-syncing the audio accurately, mouth matching the words, performing with "
+        "maximum intensity, aggressively bobbing the head up and down with maximum "
+        "momentum on the hard rhythm, bouncing hard to the beat, explosive full-body "
+        "movements, arms and hips snapping sharply, jumping, kinetic high-energy "
+        "showmanship, never standing still"
     ),
 )
+# Matting: after lip-sync, cut the character out by SUBJECT segmentation
+# (BiRefNet on fal) instead of chroma-keying green — so green clothes, green
+# creatures, and thin limbs stay solid. The model caps at MATTING_MAX_FRAMES,
+# so longer clips are downsampled in fps to fit.
+MATTING_ENABLED = env.bool("MATTING_ENABLED", default=True)
+MATTING_MODEL = env("MATTING_MODEL", default="fal-ai/birefnet/v2/video")
+MATTING_MODEL_VARIANT = env("MATTING_MODEL_VARIANT", default="Matting")
+MATTING_OUTPUT_TYPE = env("MATTING_OUTPUT_TYPE", default="VP9 (.webm)")
+MATTING_MAX_FRAMES = env.int("MATTING_MAX_FRAMES", default=512)
+
 # Which audio the lip-sync model receives: "vocals" (isolated stem — clean
 # voice, so lip-sync stays accurate even when the song is music-heavy and the
 # vocals are buried in the mix) or "mix" (full clip — more beat-driven body

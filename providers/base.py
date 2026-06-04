@@ -73,6 +73,13 @@ class LipSyncer(Protocol):
         ...
 
 
+@runtime_checkable
+class Matter(Protocol):
+    def matte(self, video_in: Path, out_path: Path) -> Path:
+        """Cut the subject out of ``video_in``, writing a clip with alpha."""
+        ...
+
+
 def _is_fake() -> bool:
     return settings.PROVIDER_MODE == "fake"
 
@@ -115,6 +122,16 @@ def get_portrait_generator() -> PortraitGenerator:
     from providers.fal import RealFalPortraitGenerator  # noqa: PLC0415
 
     return RealFalPortraitGenerator()
+
+
+def get_matter() -> Matter:
+    if _is_fake():
+        from providers.fakes import FakeMatter  # noqa: PLC0415
+
+        return FakeMatter()
+    from providers.matting import RealFalMatter  # noqa: PLC0415
+
+    return RealFalMatter()
 
 
 def get_lip_syncer() -> LipSyncer:

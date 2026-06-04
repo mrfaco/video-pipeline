@@ -11,9 +11,14 @@ written file out, the path returned (AGENTS.md §5).
 from __future__ import annotations
 
 import shutil
+import subprocess
 from pathlib import Path
 
 from django.conf import settings
+
+
+class FakeMattingError(RuntimeError):
+    """ffmpeg failed while faking the matte."""
 
 
 def _copy_fixture(fixture_name: str, out_path: Path) -> Path:
@@ -60,3 +65,37 @@ class FakeLipSyncer:
 
     def sync(self, portrait_path: Path, audio_path: Path, out_path: Path) -> Path:
         return _copy_fixture("character_lipsync.mp4", out_path)
+
+
+class FakeMatter:
+    """Locally chroma-keys the (pure-green) fixture into an alpha clip.
+
+    Stands in for cloud subject-matting: the fake-mode lip-sync fixture is on a
+    pure 0x00FF00 screen, so a local chroma-key produces a clean cutout. Output
+    is ProRes 4444 .mov (which reliably carries an alpha channel — libvpx-vp9
+    drops it locally), written next to ``out_path``; the actual path is returned.
+    """
+
+    def matte(self, video_in: Path, out_path: Path) -> Path:
+        mov = Path(out_path).with_suffix(".mov")
+        mov.parent.mkdir(parents=True, exist_ok=True)
+        cmd = [
+            "ffmpeg",
+            "-y",
+            "-i",
+            str(video_in),
+            "-an",
+            "-vf",
+            "chromakey=0x00FF00:0.30:0.10",
+            "-c:v",
+            "prores_ks",
+            "-pix_fmt",
+            "yuva444p10le",
+            str(mov),
+        ]
+        try:
+            subprocess.run(cmd, check=True, capture_output=True)
+        except subprocess.CalledProcessError as exc:
+            stderr = exc.stderr.decode("utf-8", "replace") if exc.stderr else ""
+            raise FakeMattingError(f"fake matte failed: {stderr}") from exc
+        return mov

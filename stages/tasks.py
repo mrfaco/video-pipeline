@@ -26,9 +26,12 @@ from core.storage import artifact_path
 from delivery.telegram import send_video
 from jobs.models import Artifact, Job
 from providers.base import (
+    LipSyncer,
+    Matter,
     get_background_generator,
     get_caption_aligner,
     get_lip_syncer,
+    get_matter,
     get_portrait_generator,
     get_vocal_separator,
 )
@@ -219,26 +222,63 @@ def generate_visuals(payload: dict) -> dict:
     return ctx.to_dict()
 
 
+def _render_character(
+    syncer: LipSyncer,
+    matter: Matter | None,
+    portrait: Path,
+    audio: Path,
+    job_id: str,
+    name: str,
+) -> Path:
+    """Lip-sync the portrait, then (if matting is on) cut it out with alpha.
+
+    Matting replaces chroma-key: BiRefNet segments the subject, so green
+    clothes / creatures / thin limbs stay solid. Returns the composite-ready
+    clip (an alpha clip when matted — the matter picks the container — else the
+    raw greenscreen .mp4).
+    """
+    raw = artifact_path(job_id, f"{name}_raw.mp4")
+    syncer.sync(portrait, audio, raw)
+    if matter is None:
+        return raw
+    return matter.matte(raw, artifact_path(job_id, f"{name}.webm"))
+
+
 @shared_task(**_TASK_OPTS)
 def lipsync_render(payload: dict) -> dict:
     ctx = JobContext.from_dict(payload)
     _advance(ctx.job_id, "lipsync_render")
-    out = artifact_path(ctx.job_id, "character_lipsync.mp4")
     # Talking-head models sync best on the isolated vocal stem; body-animating
     # models (OmniHuman) need the full mix to dance to the beat.
     if settings.LIPSYNC_AUDIO_SOURCE == "mix":
         sync_audio = _require_path(ctx.song_normalized_path)
     else:
         sync_audio = _require_path(ctx.vocal_stem_path)
+
     syncer = get_lip_syncer()
-    syncer.sync(_require_path(ctx.character_portrait_path), sync_audio, out)
+    matter = get_matter() if settings.MATTING_ENABLED else None
+
+    out = _render_character(
+        syncer,
+        matter,
+        _require_path(ctx.character_portrait_path),
+        sync_audio,
+        ctx.job_id,
+        "character_lipsync",
+    )
     ctx.lipsync_path = str(out)
     _record(ctx.job_id, "lipsync_render", "lipsync", out)
 
     # Backup character (trio) — synced to the same audio so they're in step.
     if ctx.backup_portrait_path:
-        backup_out = artifact_path(ctx.job_id, "backup_lipsync.mp4")
-        syncer.sync(_require_path(ctx.backup_portrait_path), sync_audio, backup_out)
+        backup_out = _render_character(
+            syncer,
+            matter,
+            _require_path(ctx.backup_portrait_path),
+            sync_audio,
+            ctx.job_id,
+            "backup_lipsync",
+        )
         ctx.backup_lipsync_path = str(backup_out)
         _record(ctx.job_id, "lipsync_render", "backup_lipsync", backup_out)
     return ctx.to_dict()
@@ -255,6 +295,7 @@ def compose_video(payload: dict) -> dict:
         background_loop=_require_path(ctx.background_loop_path),
         character_clip=_require_path(ctx.lipsync_path),
         backup_clip=backup_clip,
+        matted=settings.MATTING_ENABLED,
         audio=_require_path(ctx.song_normalized_path),
         captions=captions,
         out_path=out,
