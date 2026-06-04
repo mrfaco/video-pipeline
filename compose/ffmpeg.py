@@ -193,6 +193,76 @@ def _escape_subtitles_path(path: Path) -> str:
     return text.replace(",", "\\,")
 
 
+def _kinetic_filter(
+    in_label: str,
+    out_label: str,
+    *,
+    width: int,
+    height: int,
+    intro_zoom: float,
+    intro_seconds: float,
+    beat_zoom: float,
+    beat_period: float,
+    beat_offset: float,
+    beat_decay: float,
+    base_zoom: float,
+    shake_px: float,
+) -> str:
+    """Build a ``[in_label] -> [out_label]`` kinetic-camera filter fragment.
+
+    A single ``zoompan`` re-evaluates ``on`` (the output frame index) every
+    frame; a plain ``crop`` with ``t`` does NOT animate in this ffmpeg build, so
+    zoompan is the only way to get a per-frame zoom. Commas inside the
+    expressions are escaped so the filtergraph parser keeps them as function
+    args. With every effect off this is a passthrough ``null``. Shared by
+    ``compose_final`` and ``compose_scene``.
+    """
+    fps = 30
+    t = f"on/{fps}"  # seconds, from the (fps-normalised) frame index
+
+    # A continuous handheld jitter needs crop headroom or it shows black edges
+    # at the frame border, so derive a minimum base zoom that keeps the shifted
+    # crop window inside the source.
+    eff_base = base_zoom
+    if shake_px > 0.0:
+        needed = 1.0 / (1.0 - 2.0 * shake_px / width)
+        eff_base = max(eff_base, needed * 1.02)
+
+    terms = []
+    if eff_base > 1.0:
+        terms.append(f"{eff_base:.4f}")
+    if intro_zoom > 1.0:
+        terms.append(
+            f"if(lt({t}\\,{intro_seconds})\\,"
+            f"{intro_zoom}-({intro_zoom}-1)*({t})/{intro_seconds}\\,1)"
+        )
+    if beat_zoom > 1.0 and beat_period > 0.0:
+        # Spikes to beat_zoom on every beat, decaying to 1.0 over beat_decay.
+        terms.append(
+            f"1+({beat_zoom}-1)*max(0\\,1-mod({t}-{beat_offset}\\,{beat_period})/{beat_decay})"
+        )
+
+    if not terms:
+        return f"[{in_label}]null[{out_label}]"
+
+    z = terms[0]
+    for term in terms[1:]:
+        z = f"max({z}\\,{term})"  # ffmpeg max() is binary; nest for >2 terms
+    if shake_px > 0.0:
+        # Two incommensurate frequencies read as organic handheld drift.
+        sx = f"+{shake_px}*sin(2*PI*{t}*5.3)"
+        sy = f"+{shake_px}*sin(2*PI*{t}*7.1)"
+    else:
+        sx = sy = ""
+    x = f"iw/2-(iw/zoom/2){sx}"
+    y = f"ih/2-(ih/zoom/2){sy}"
+    pf = f"{out_label}_pf"
+    return (
+        f"[{in_label}]fps={fps}[{pf}];"
+        f"[{pf}]zoompan=z='{z}':x='{x}':y='{y}':d=1:s={width}x{height}:fps={fps}[{out_label}]"
+    )
+
+
 # Trio layout (boss + two flanking backups), as fractions of the canvas height.
 _BOSS_HEIGHT_FRAC = 0.64
 _FLANK_HEIGHT_FRAC = 0.41
@@ -299,54 +369,22 @@ def compose_final(
     else:
         filter_complex += ";[comp]null[pre]"
 
-    # Kinetic-camera pass: a single zoompan animating the crop window per frame.
-    # zoompan re-evaluates ``on`` (output frame index) every frame; a plain crop
-    # with ``t`` does NOT animate in this ffmpeg build, so zoompan is the only
-    # way to get a per-frame zoom. Commas inside the expressions are escaped so
-    # the filtergraph parser keeps them as function args, not filter separators.
-    fps = 30
-    t = f"on/{fps}"  # seconds, from the (fps-normalised) frame index
-
-    # A continuous handheld jitter needs crop headroom or it shows black edges
-    # at the frame border, so derive a minimum base zoom that keeps the shifted
-    # crop window inside the source.
-    eff_base = base_zoom
-    if shake_px > 0.0:
-        needed = 1.0 / (1.0 - 2.0 * shake_px / width)
-        eff_base = max(eff_base, needed * 1.02)
-
-    terms = []
-    if eff_base > 1.0:
-        terms.append(f"{eff_base:.4f}")
-    if intro_zoom > 1.0:
-        terms.append(
-            f"if(lt({t}\\,{intro_seconds})\\,"
-            f"{intro_zoom}-({intro_zoom}-1)*({t})/{intro_seconds}\\,1)"
-        )
-    if beat_zoom > 1.0 and beat_period > 0.0:
-        # Spikes to beat_zoom on every beat, decaying to 1.0 over beat_decay.
-        terms.append(
-            f"1+({beat_zoom}-1)*max(0\\,1-mod({t}-{beat_offset}\\,{beat_period})/{beat_decay})"
-        )
-
-    if terms:
-        z = terms[0]
-        for term in terms[1:]:
-            z = f"max({z}\\,{term})"  # ffmpeg max() is binary; nest for >2 terms
-        if shake_px > 0.0:
-            # Two incommensurate frequencies read as organic handheld drift.
-            sx = f"+{shake_px}*sin(2*PI*{t}*5.3)"
-            sy = f"+{shake_px}*sin(2*PI*{t}*7.1)"
-        else:
-            sx = sy = ""
-        x = f"iw/2-(iw/zoom/2){sx}"
-        y = f"ih/2-(ih/zoom/2){sy}"
-        filter_complex += (
-            f";[pre]fps={fps}[pf];"
-            f"[pf]zoompan=z='{z}':x='{x}':y='{y}':d=1:s={width}x{height}:fps={fps}[v]"
-        )
-    else:
-        filter_complex += ";[pre]null[v]"
+    # Kinetic-camera pass (shared with compose_scene): a single zoompan animating
+    # the crop window per frame.
+    filter_complex += ";" + _kinetic_filter(
+        "pre",
+        "v",
+        width=width,
+        height=height,
+        intro_zoom=intro_zoom,
+        intro_seconds=intro_seconds,
+        beat_zoom=beat_zoom,
+        beat_period=beat_period,
+        beat_offset=beat_offset,
+        beat_decay=beat_decay,
+        base_zoom=base_zoom,
+        shake_px=shake_px,
+    )
 
     # Bound the output explicitly (``-shortest`` is unreliable with an infinite
     # ``-stream_loop`` background — it overshoots). Use the shorter of the audio
@@ -364,6 +402,86 @@ def compose_final(
         "[v]",
         "-map",
         f"{audio_idx}:a",
+        "-t",
+        f"{duration:.3f}",
+        *_VIDEO_ENCODE,
+        "-c:a",
+        "aac",
+        str(out_path),
+    ]
+    _run(cmd)
+    return out_path
+
+
+def compose_scene(
+    *,
+    scene_clip: Path,
+    audio: Path,
+    captions: Path | None,
+    out_path: Path,
+    width: int = 1080,
+    height: int = 1920,
+    intro_zoom: float = 1.0,
+    intro_seconds: float = 0.4,
+    beat_zoom: float = 1.0,
+    beat_period: float = 0.0,
+    beat_offset: float = 0.0,
+    beat_decay: float = 0.18,
+    base_zoom: float = 1.0,
+    shake_px: float = 0.0,
+) -> Path:
+    """Dance-mode compose: a single integrated scene clip → final 9:16 mp4.
+
+    Unlike ``compose_final`` there is no background loop, no character overlay,
+    and no matte — the scene clip already contains the girl in her environment.
+    Scale/pad it to ``width``x``height``, optionally burn ``captions``, apply the
+    shared kinetic-camera pass, and mux the audio (bounded to the shorter of the
+    two). Returns ``out_path``.
+
+    Raises ``subprocess.CalledProcessError`` if ffmpeg exits non-zero.
+    """
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Fit the scene (whatever the i2v aspect) into the canvas, padded + centered.
+    chain = (
+        f"[0:v]scale={width}:{height}:force_original_aspect_ratio=decrease,"
+        f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2,setsar=1[scaled]"
+    )
+    if captions is not None:
+        escaped = _escape_subtitles_path(Path(captions))
+        chain += f";[scaled]subtitles='{escaped}'[pre]"
+    else:
+        chain += ";[scaled]null[pre]"
+    chain += ";" + _kinetic_filter(
+        "pre",
+        "v",
+        width=width,
+        height=height,
+        intro_zoom=intro_zoom,
+        intro_seconds=intro_seconds,
+        beat_zoom=beat_zoom,
+        beat_period=beat_period,
+        beat_offset=beat_offset,
+        beat_decay=beat_decay,
+        base_zoom=base_zoom,
+        shake_px=shake_px,
+    )
+
+    duration = min(_probe_duration(Path(audio)), _probe_duration(Path(scene_clip)))
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-i",
+        str(scene_clip),
+        "-i",
+        str(audio),
+        "-filter_complex",
+        chain,
+        "-map",
+        "[v]",
+        "-map",
+        "1:a",
         "-t",
         f"{duration:.3f}",
         *_VIDEO_ENCODE,

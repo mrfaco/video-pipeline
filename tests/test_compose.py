@@ -10,7 +10,13 @@ import pytest
 from django.conf import settings
 
 from compose.captions import build_ass
-from compose.ffmpeg import compose_final, composite_window, crop_window, probe_dimensions
+from compose.ffmpeg import (
+    compose_final,
+    compose_scene,
+    composite_window,
+    crop_window,
+    probe_dimensions,
+)
 
 FIXTURES_DIR = Path(settings.FIXTURES_DIR)
 
@@ -143,6 +149,36 @@ def test_compose_final_trio_floating_small_flanks(tmp_path):
         flank_height_frac=0.2,
         flank_y_frac=0.32,
         flank_peek_px=-25,
+    )
+    assert out.exists()
+    assert probe_dimensions(out) == (1080, 1920)
+
+
+def test_compose_scene_produces_video(tmp_path):
+    # Dance-mode compose: a single scene clip padded to 1080x1920, kinetic on,
+    # muxed with audio — no overlay, no matte.
+    out = compose_scene(
+        scene_clip=FIXTURES_DIR / "character_lipsync.mp4",
+        audio=FIXTURES_DIR / "song.mp3",
+        captions=None,
+        out_path=tmp_path / "dance.mp4",
+        beat_zoom=1.035,
+        beat_period=0.5,
+        beat_offset=0.0,
+        beat_decay=0.18,
+        shake_px=2.5,
+    )
+    assert out.exists()
+    assert probe_dimensions(out) == (1080, 1920)
+
+
+def test_compose_scene_with_captions(tmp_path):
+    captions = build_ass(FIXTURES_DIR / "word_timestamps.json", tmp_path / "c.ass")
+    out = compose_scene(
+        scene_clip=FIXTURES_DIR / "character_lipsync.mp4",
+        audio=FIXTURES_DIR / "song.mp3",
+        captions=captions,
+        out_path=tmp_path / "dance_cap.mp4",
     )
     assert out.exists()
     assert probe_dimensions(out) == (1080, 1920)
