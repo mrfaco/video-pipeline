@@ -77,7 +77,9 @@ class FakeLipSyncer:
 class FakeAnimator:
     """Returns the bundled greenscreen clip as the 'animated' (moving) video."""
 
-    def animate(self, image_path: Path, out_path: Path) -> Path:
+    def animate(
+        self, image_path: Path, out_path: Path, tail_image_path: Path | None = None
+    ) -> Path:
         return _copy_fixture("character_lipsync.mp4", out_path)
 
 

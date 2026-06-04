@@ -15,8 +15,18 @@ from compose.ffmpeg import (
     compose_scene,
     composite_window,
     crop_window,
+    loop_seamless,
     probe_dimensions,
 )
+
+
+def _probe_duration(path) -> float:
+    out = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+         "-of", "default=noprint_wrappers=1:nokey=1", str(path)],
+        check=True, capture_output=True, text=True,
+    )
+    return float(out.stdout.strip())
 
 FIXTURES_DIR = Path(settings.FIXTURES_DIR)
 
@@ -182,6 +192,35 @@ def test_compose_scene_with_captions(tmp_path):
     )
     assert out.exists()
     assert probe_dimensions(out) == (1080, 1920)
+
+
+def test_loop_seamless_crossfades_and_shortens(tmp_path):
+    # Build a real video+audio clip, then loop it: output is ~crossfade shorter
+    # and still a valid 1080x1920 video with audio.
+    src = compose_scene(
+        scene_clip=FIXTURES_DIR / "character_lipsync.mp4",
+        audio=FIXTURES_DIR / "song.mp3",
+        captions=None,
+        out_path=tmp_path / "src.mp4",
+    )
+    src_dur = _probe_duration(src)
+    out = loop_seamless(src, tmp_path / "looped.mp4", duration=0.4)
+    assert out.exists()
+    assert probe_dimensions(out) == (1080, 1920)
+    assert _probe_duration(out) == pytest.approx(src_dur - 0.4, abs=0.25)
+
+
+def test_loop_seamless_passthrough_when_too_short(tmp_path):
+    # A clip shorter than 2x the crossfade can't be looped this way → returned
+    # unchanged rather than erroring.
+    src = compose_scene(
+        scene_clip=FIXTURES_DIR / "character_lipsync.mp4",
+        audio=FIXTURES_DIR / "song.mp3",
+        captions=None,
+        out_path=tmp_path / "short.mp4",
+    )
+    out = loop_seamless(src, tmp_path / "out.mp4", duration=_probe_duration(src))
+    assert out == src  # unchanged
 
 
 def test_compose_final_missing_background_raises(tmp_path):

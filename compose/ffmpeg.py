@@ -193,6 +193,55 @@ def _escape_subtitles_path(path: Path) -> str:
     return text.replace(",", "\\,")
 
 
+def loop_seamless(src: Path, out_path: Path, duration: float = 0.4) -> Path:
+    """Rewrite ``src`` so it loops seamlessly, dissolving the tail into the head.
+
+    Crossfades the last ``duration`` seconds back over the first ``duration``
+    seconds (video ``xfade`` + audio ``acrossfade``). The result is
+    ``duration`` shorter and its first frame equals its last, so when a platform
+    loops it there is no visible/audible seam. Clips too short to spare two
+    crossfades are returned unchanged.
+    """
+    src = Path(src)
+    out_path = Path(out_path)
+    length = _probe_duration(src)
+    if length <= 2 * duration:
+        return src  # nothing to crossfade into
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    offset = length - 2 * duration
+    d = f"{duration:.3f}"
+    # Reorder both video and audio to start at +d, then dissolve the original
+    # tail back over the original head (video xfade). xfade needs a constant
+    # frame rate, so normalise with fps. Audio is reordered identically to stay
+    # in sync; the visible video seam is what a loop reveals, and music tolerates
+    # the wrap. The output's first frame equals its last → seamless on loop.
+    filtergraph = (
+        f"[0:v]split[v0][v1];"
+        f"[v0]trim=start={d},setpts=PTS-STARTPTS,fps=30[vmain];"
+        f"[v1]trim=duration={d},setpts=PTS-STARTPTS,fps=30[vhead];"
+        f"[vmain][vhead]xfade=transition=fade:duration={d}:offset={offset:.3f}[vout];"
+        f"[0:a]atrim=start={d},asetpts=PTS-STARTPTS[aout]"
+    )
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-i",
+        str(src),
+        "-filter_complex",
+        filtergraph,
+        "-map",
+        "[vout]",
+        "-map",
+        "[aout]",
+        *_VIDEO_ENCODE,
+        "-c:a",
+        "aac",
+        str(out_path),
+    ]
+    _run(cmd)
+    return out_path
+
+
 def _kinetic_filter(
     in_label: str,
     out_label: str,

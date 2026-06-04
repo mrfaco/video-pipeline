@@ -335,6 +335,13 @@ TRIO_BOSS_HEIGHT_FRAC = env.float("TRIO_BOSS_HEIGHT_FRAC", default=0.64)
 TRIO_FLANK_HEIGHT_FRAC = env.float("TRIO_FLANK_HEIGHT_FRAC", default=0.41)
 TRIO_FLANK_Y_FRAC = env.float("TRIO_FLANK_Y_FRAC", default=-1.0)
 TRIO_FLANK_PEEK_PX = env.int("TRIO_FLANK_PEEK_PX", default=40)
+
+# Seamless looping (boosts replays on TikTok/Reels). Dance mode gives Kling the
+# scene still as the END frame too (start == end → the motion returns home, a
+# true seam-free loop). Closeup mode can't drive that, so compose dissolves the
+# last LOOP_CROSSFADE_SECONDS back over the first (a soft xfade at the wrap).
+LOOP_SEAMLESS_ENABLED = env.bool("LOOP_SEAMLESS_ENABLED", default=True)
+LOOP_CROSSFADE_SECONDS = env.float("LOOP_CROSSFADE_SECONDS", default=0.4)
 # Force the WhisperX transcription language (ISO code, e.g. "es"). Empty =
 # auto-detect. Auto-detect is unreliable on short non-English clips, so set
 # this when the song isn't English. (A per-song preset field is the eventual

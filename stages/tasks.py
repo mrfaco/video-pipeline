@@ -23,6 +23,7 @@ from compose.ffmpeg import (
     compose_scene,
     composite_window,
     crop_window,
+    loop_seamless,
     probe_dimensions,
 )
 from core.audio import clip_audio, normalize_loudness, parse_timerange
@@ -227,7 +228,10 @@ def generate_visuals(payload: dict) -> dict:
         get_scene_generator().generate(prompt, still)
         _record(ctx.job_id, "generate_visuals", "scene_still", still)
         clip = artifact_path(ctx.job_id, "scene_motion.mp4")
-        get_animator().animate(still, clip)
+        # Seamless loop: end the dance on the same frame it started, so the
+        # motion returns home and the platform's loop has no visible seam.
+        tail = still if settings.LOOP_SEAMLESS_ENABLED else None
+        get_animator().animate(still, clip, tail_image_path=tail)
         ctx.scene_clip_path = str(clip)
         _record(ctx.job_id, "generate_visuals", "scene", clip)
         return ctx.to_dict()
@@ -368,6 +372,11 @@ def compose_video(payload: dict) -> dict:
         beat_period = beat_offset = 0.0
         beat_zoom = base_zoom = 1.0
         shake_px = 0.0
+    # Dance loops via Kling's end-frame (start == end) already. Closeup can't
+    # drive that, so compose into a pre-wrap file and dissolve the tail back over
+    # the head for a seamless loop.
+    loop_closeup = ctx.mode != "dance" and settings.LOOP_SEAMLESS_ENABLED
+    compose_target = artifact_path(ctx.job_id, "prewrap.mp4") if loop_closeup else out
     if ctx.mode == "dance":
         # Single integrated scene clip — no overlay, no matte, no lip-sync layer.
         compose_scene(
@@ -392,7 +401,7 @@ def compose_video(payload: dict) -> dict:
             matted=settings.MATTING_ENABLED,
             audio=audio,
             captions=captions,
-            out_path=out,
+            out_path=compose_target,
             intro_zoom=settings.INTRO_PUNCH_ZOOM,
             intro_seconds=settings.INTRO_PUNCH_SECONDS,
             beat_zoom=beat_zoom,
@@ -406,6 +415,8 @@ def compose_video(payload: dict) -> dict:
             flank_y_frac=settings.TRIO_FLANK_Y_FRAC,
             flank_peek_px=settings.TRIO_FLANK_PEEK_PX,
         )
+    if loop_closeup:
+        loop_seamless(compose_target, out, settings.LOOP_CROSSFADE_SECONDS)
     ctx.output_path = str(out)
     Job.objects.filter(pk=ctx.job_id).update(output_path=str(out))
     _record(ctx.job_id, "compose_video", "output", out)

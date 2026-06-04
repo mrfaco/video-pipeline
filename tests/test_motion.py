@@ -59,6 +59,31 @@ def test_kling_animate_downloads(tmp_path, monkeypatch):
 
 
 @override_settings(FAL_KEY="k")
+def test_kling_animate_passes_tail_image_for_loop(tmp_path, monkeypatch):
+    # A tail image (same as start) makes Kling end on the starting frame for a
+    # seamless loop. It must reach the API as `tail_image_url`.
+    captured = {}
+    fake = types.ModuleType("fal_client")
+    fake.upload_file = lambda p: f"https://up/{Path(p).name}"  # noqa: E731
+    fake.subscribe = lambda model, arguments: captured.update(arguments) or {  # noqa: E731
+        "video": {"url": "https://v/out.mp4"}
+    }
+    monkeypatch.setitem(sys.modules, "fal_client", fake)
+    monkeypatch.setattr(motion_mod, "_download", lambda url, out: Path(out))
+    RealKlingAnimator().animate(
+        tmp_path / "start.png", tmp_path / "out.mp4", tail_image_path=tmp_path / "start.png"
+    )
+    assert captured["tail_image_url"] == "https://up/start.png"
+
+
+def test_fake_animator_accepts_tail(tmp_path):
+    out = FakeAnimator().animate(
+        tmp_path / "img.png", tmp_path / "m.mp4", tail_image_path=tmp_path / "img.png"
+    )
+    assert out.is_file()
+
+
+@override_settings(FAL_KEY="k")
 def test_video_lipsync_downloads(tmp_path, monkeypatch):
     fake = types.ModuleType("fal_client")
     fake.upload_file = lambda p: "https://up/x"  # noqa: E731
