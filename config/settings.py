@@ -342,6 +342,14 @@ TRIO_FLANK_PEEK_PX = env.int("TRIO_FLANK_PEEK_PX", default=40)
 # last LOOP_CROSSFADE_SECONDS back over the first (a soft xfade at the wrap).
 LOOP_SEAMLESS_ENABLED = env.bool("LOOP_SEAMLESS_ENABLED", default=True)
 LOOP_CROSSFADE_SECONDS = env.float("LOOP_CROSSFADE_SECONDS", default=0.4)
+# How dance mode loops:
+#   "crossfade" — Kling dances at full energy throughout; compose dissolves the
+#                 wrap (energetic all the way, brief soft blend at the seam).
+#   "endframe"  — Kling ends on the start frame (true seam-free loop, but the
+#                 motion settles into the pose over the last ~second).
+#   "off"       — no loop.
+# Default crossfade: a stationary tail reads worse than a 0.4s dissolve.
+DANCE_LOOP_MODE = env("DANCE_LOOP_MODE", default="crossfade")
 # Force the WhisperX transcription language (ISO code, e.g. "es"). Empty =
 # auto-detect. Auto-detect is unreliable on short non-English clips, so set
 # this when the song isn't English. (A per-song preset field is the eventual

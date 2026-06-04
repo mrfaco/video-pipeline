@@ -228,9 +228,11 @@ def generate_visuals(payload: dict) -> dict:
         get_scene_generator().generate(prompt, still)
         _record(ctx.job_id, "generate_visuals", "scene_still", still)
         clip = artifact_path(ctx.job_id, "scene_motion.mp4")
-        # Seamless loop: end the dance on the same frame it started, so the
-        # motion returns home and the platform's loop has no visible seam.
-        tail = still if settings.LOOP_SEAMLESS_ENABLED else None
+        # "endframe" loop: end the dance on the start frame (Kling returns home).
+        # "crossfade"/"off": let Kling dance at full energy; compose handles the
+        # loop (or not), so the motion never settles into a stationary tail.
+        endframe = settings.LOOP_SEAMLESS_ENABLED and settings.DANCE_LOOP_MODE == "endframe"
+        tail = still if endframe else None
         get_animator().animate(still, clip, tail_image_path=tail)
         ctx.scene_clip_path = str(clip)
         _record(ctx.job_id, "generate_visuals", "scene", clip)
@@ -372,11 +374,14 @@ def compose_video(payload: dict) -> dict:
         beat_period = beat_offset = 0.0
         beat_zoom = base_zoom = 1.0
         shake_px = 0.0
-    # Dance loops via Kling's end-frame (start == end) already. Closeup can't
-    # drive that, so compose into a pre-wrap file and dissolve the tail back over
-    # the head for a seamless loop.
-    loop_closeup = ctx.mode != "dance" and settings.LOOP_SEAMLESS_ENABLED
-    compose_target = artifact_path(ctx.job_id, "prewrap.mp4") if loop_closeup else out
+    # Seamless loop via a compose crossfade — for closeup always, and for dance
+    # unless it's using the endframe loop (which Kling already baked in). Compose
+    # into a pre-wrap file, then dissolve the tail back over the head.
+    if ctx.mode == "dance":
+        crossfade_loop = settings.LOOP_SEAMLESS_ENABLED and settings.DANCE_LOOP_MODE == "crossfade"
+    else:
+        crossfade_loop = settings.LOOP_SEAMLESS_ENABLED
+    compose_target = artifact_path(ctx.job_id, "prewrap.mp4") if crossfade_loop else out
     if ctx.mode == "dance":
         # The intro zoom-punch fights a seamless loop (frame 0 would be zoomed in
         # vs the last frame, and the punch re-triggers each loop). Drop it when
@@ -388,7 +393,7 @@ def compose_video(payload: dict) -> dict:
             scene_clip=_require_path(ctx.scene_clip_path),
             audio=audio,
             captions=captions,
-            out_path=out,
+            out_path=compose_target,
             intro_zoom=dance_intro,
             intro_seconds=settings.INTRO_PUNCH_SECONDS,
             beat_zoom=beat_zoom,
@@ -420,7 +425,7 @@ def compose_video(payload: dict) -> dict:
             flank_y_frac=settings.TRIO_FLANK_Y_FRAC,
             flank_peek_px=settings.TRIO_FLANK_PEEK_PX,
         )
-    if loop_closeup:
+    if crossfade_loop:
         loop_seamless(compose_target, out, settings.LOOP_CROSSFADE_SECONDS)
     ctx.output_path = str(out)
     Job.objects.filter(pk=ctx.job_id).update(output_path=str(out))
