@@ -1,0 +1,12 @@
+# Dance mode: the girl AND her environment are generated together as one
+# integrated scene (no greenscreen, no compositing), then animated with the
+# high-motion model. No lip-sync — pure scroll-stopping motion. The character is
+# "same vibe, not exact face": an attractive girl consistent within the video.
+#
+# No `character:` block is needed — the scene model invents her from the theme.
+mode: dance
+
+song:
+  source: "https://vt.tiktok.com/ZSxowC4kY/"
+
+theme: "a vast neon-lit rooftop at night, glowing city skyline behind her, rain, cinematic"

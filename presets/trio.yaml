@@ -1,3 +1,5 @@
+mode: closeup
+
 # Trio: a center "boss" flanked by two mirrored backup dancers (the viral
 # 'Coming to the Tree' layout). Add a `backup:` block to ANY preset to turn it
 # into a trio; remove it for solo. Each distinct character is its own render.

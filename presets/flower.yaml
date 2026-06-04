@@ -1,3 +1,5 @@
+mode: closeup
+
 # A flower creature dancing in a field of differently-colored flowers.
 # Character is red/yellow (no green) so the greenscreen chroma-key doesn't
 # eat its stem; background is blue/purple for contrast.

@@ -1,3 +1,5 @@
+mode: closeup
+
 # Saturn × a brainrot creature, dancing to a TikTok sound.
 # No `lyrics` → captions auto-skip (we don't know the TikTok audio's words).
 # The creature look comes from CHARACTER_STYLE_PROMPT; this picks the hybrid.

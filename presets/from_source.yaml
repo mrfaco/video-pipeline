@@ -1,3 +1,5 @@
+mode: closeup
+
 # Preset that fetches its song instead of using a local file.
 #
 # `song.source` is either a URL or a free-text "title artist" search query;
