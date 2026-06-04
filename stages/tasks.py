@@ -175,6 +175,9 @@ def separate_vocals(payload: dict) -> dict:
 def align_captions(payload: dict) -> dict:
     ctx = JobContext.from_dict(payload)
     _advance(ctx.job_id, "align_captions")
+    if ctx.mode == "dance":
+        # Dance videos carry no captions — the visuals carry it. Skip WhisperX.
+        return ctx.to_dict()
     if not ctx.enable_captions:
         logger.info("Captions disabled for job %s; skipping alignment.", ctx.job_id)
         return ctx.to_dict()

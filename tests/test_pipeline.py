@@ -253,7 +253,7 @@ def test_pipeline_dance_mode(tmp_path):
         assert _ffprobe_has_video(Path(job.output_path))
         kinds = set(Artifact.objects.filter(job=job).values_list("kind", flat=True))
         assert "scene" in kinds
-        assert {"vocal_stem", "portrait", "lipsync"} & kinds == set()
+        assert {"vocal_stem", "portrait", "lipsync", "captions"} & kinds == set()
 
 
 @pytest.mark.django_db

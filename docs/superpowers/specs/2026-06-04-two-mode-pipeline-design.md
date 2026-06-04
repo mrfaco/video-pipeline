@@ -43,7 +43,7 @@ AGENTS.md §5.
 |-------|---------|---------------------|
 | `prepare_assets` | fetch + normalize audio | identical |
 | `separate_vocals` | **skip** (no lip-sync needs the stem) | Demucs → vocal stem |
-| `align_captions` | optional karaoke captions (default on) | identical |
+| `align_captions` | **skip** (dance carries no captions — visuals carry it) | identical |
 | `generate_visuals` | **scene** flow (below) | background still+loop + portrait(s) |
 | `lipsync_render` | **skip** (no-op passthrough of `ctx`) | Hedra on portrait(s) + side chars + matte |
 | `compose_video` | **scene compose** (below) | trio composite over background |
