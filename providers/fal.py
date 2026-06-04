@@ -99,9 +99,18 @@ class RealFalSceneGenerator:
     def generate(self, prompt: str, out_path: Path) -> Path:
         import fal_client  # noqa: PLC0415  (heavy optional SDK, real-mode only)
 
+        # The safety checker returns an all-black image when it flags a prompt
+        # (an "attractive woman dancing" trips it), so disable it for these
+        # non-explicit creative scenes; without this the dance is built on a
+        # black frame and the motion model hallucinates garbage.
         result = fal_client.subscribe(
             self._model,
-            arguments={"prompt": prompt, "aspect_ratio": "9:16"},
+            arguments={
+                "prompt": prompt,
+                "aspect_ratio": "9:16",
+                "enable_safety_checker": False,
+                "safety_tolerance": "6",
+            },
         )
         return _download(_result_url(result, "images"), out_path)
 
