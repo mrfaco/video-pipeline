@@ -75,7 +75,17 @@ def load_preset(path: str | Path) -> dict:
     if not isinstance(song, dict):
         raise PresetError("Preset 'song' must be a mapping with an 'audio' or 'source' key.")
     theme = _require(data, "theme", str(preset_path))
-    character = _require(data, "character", str(preset_path))
+
+    mode = str(data.get("mode", "dance")).strip().lower()
+    if mode not in {"dance", "closeup"}:
+        raise PresetError(f"{preset_path}: mode must be 'dance' or 'closeup', got {mode!r}.")
+
+    # Dance mode generates the girl inside the scene, so a character block is
+    # optional. Closeup mode lip-syncs a specific portrait, so it's required.
+    if mode == "closeup":
+        character: object = _require(data, "character", str(preset_path))
+    else:
+        character = data.get("character")
 
     # Exactly one of a local file (``audio``) or a fetchable URL/query
     # (``source``). ``source`` is downloaded later, in prepare_assets.
@@ -92,7 +102,10 @@ def load_preset(path: str | Path) -> dict:
         if not audio_path.is_file():
             raise PresetError(f"Song audio not found: {audio_path}")
 
-    character_ref, character_image = _parse_character(character, "character")
+    if character:
+        character_ref, character_image = _parse_character(character, "character")
+    else:
+        character_ref, character_image = "", ""
 
     # Optional backup character → trio layout. Absent = solo.
     backup_ref, backup_image = "", ""
@@ -112,6 +125,7 @@ def load_preset(path: str | Path) -> dict:
         "audio_path": audio_path,
         "audio_source": (str(source).strip() if source else ""),
         "clip": clip,
+        "mode": mode,
         "lyrics": (song.get("lyrics") or "").strip(),
         "theme": str(theme).strip(),
         "character_ref": character_ref,
@@ -132,6 +146,7 @@ def create_job_from_preset(preset_path: str | Path) -> Job:
     job = Job.objects.create(
         preset_name=str(preset_path),
         theme=preset["theme"],
+        mode=preset["mode"],
         lyrics=preset["lyrics"],
         character_ref=preset["character_ref"],
         backup_character_ref=preset["backup_character_ref"],

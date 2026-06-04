@@ -30,6 +30,9 @@ class Job(models.Model):
 
     # --- Input snapshot (frozen at submit time; the preset file may change) ---
     preset_name = models.CharField(max_length=200, blank=True)
+    # Pipeline mode: "dance" (scene-gen + high-motion, no lip-sync) or "closeup"
+    # (Hedra singer + matte + side characters).
+    mode = models.CharField(max_length=16, default="dance")
     theme = models.TextField()
     lyrics = models.TextField(blank=True)
     character_ref = models.CharField(max_length=500)

@@ -51,6 +51,49 @@ def test_load_preset_missing_file_raises():
         load_preset("presets/does-not-exist.yaml")
 
 
+def test_load_preset_mode_defaults_and_parses(tmp_path):
+    p = tmp_path / "m.yaml"
+    p.write_text(
+        "song:\n  audio: fixtures/song.mp3\ntheme: t\n"
+        "character:\n  image: fixtures/character_portrait.png\n",
+        encoding="utf-8",
+    )
+    assert load_preset(str(p))["mode"] == "dance"
+    p.write_text(
+        "song:\n  audio: fixtures/song.mp3\ntheme: t\nmode: closeup\n"
+        "character:\n  image: fixtures/character_portrait.png\n",
+        encoding="utf-8",
+    )
+    assert load_preset(str(p))["mode"] == "closeup"
+
+
+def test_load_preset_rejects_bad_mode(tmp_path):
+    p = tmp_path / "bad.yaml"
+    p.write_text(
+        "song:\n  audio: fixtures/song.mp3\ntheme: t\nmode: sideways\n"
+        "character:\n  image: fixtures/character_portrait.png\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(PresetError):
+        load_preset(str(p))
+
+
+def test_load_preset_dance_allows_no_character(tmp_path):
+    # Dance mode invents the girl in the scene, so a character block is optional.
+    p = tmp_path / "dance.yaml"
+    p.write_text("song:\n  audio: fixtures/song.mp3\ntheme: a neon city\nmode: dance\n", encoding="utf-8")
+    preset = load_preset(str(p))
+    assert preset["mode"] == "dance"
+    assert preset["character_ref"] == ""
+
+
+def test_load_preset_closeup_requires_character(tmp_path):
+    p = tmp_path / "c.yaml"
+    p.write_text("song:\n  audio: fixtures/song.mp3\ntheme: t\nmode: closeup\n", encoding="utf-8")
+    with pytest.raises(PresetError):
+        load_preset(str(p))
+
+
 def test_load_preset_source_variant():
     preset = load_preset("presets/from_source.yaml")
     assert preset["audio_path"] is None
