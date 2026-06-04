@@ -81,7 +81,9 @@ def test_load_preset_rejects_bad_mode(tmp_path):
 def test_load_preset_dance_allows_no_character(tmp_path):
     # Dance mode invents the girl in the scene, so a character block is optional.
     p = tmp_path / "dance.yaml"
-    p.write_text("song:\n  audio: fixtures/song.mp3\ntheme: a neon city\nmode: dance\n", encoding="utf-8")
+    p.write_text(
+        "song:\n  audio: fixtures/song.mp3\ntheme: a neon city\nmode: dance\n", encoding="utf-8"
+    )
     preset = load_preset(str(p))
     assert preset["mode"] == "dance"
     assert preset["character_ref"] == ""
