@@ -112,7 +112,7 @@ def _image_preset(tmp_path) -> str:
     p = tmp_path / "img.yaml"
     p.write_text(
         "song:\n  audio: fixtures/song.mp3\n"
-        "theme: a place\n"
+        "theme: a place\nmode: closeup\n"
         "character:\n  image: fixtures/character_portrait.png\n",
         encoding="utf-8",
     )
@@ -147,7 +147,7 @@ def _trio_preset(tmp_path) -> str:
     p = tmp_path / "trio.yaml"
     p.write_text(
         "song:\n  audio: fixtures/song.mp3\n"
-        "theme: a place\n"
+        "theme: a place\nmode: closeup\n"
         "character:\n  image: fixtures/character_portrait.png\n"
         "backup:\n  image: fixtures/character_portrait.png\n",
         encoding="utf-8",
@@ -230,6 +230,28 @@ def test_full_pipeline_produces_video(tmp_path):
         # Every stage that produces an artifact recorded one.
         kinds = set(Artifact.objects.filter(job=job).values_list("kind", flat=True))
         assert {"normalized_full", "vocal_stem", "captions", "background_loop", "output"} <= kinds
+
+
+@pytest.mark.django_db
+def test_pipeline_dance_mode(tmp_path):
+    # Dance mode: scene-gen (fixture) -> fake Kling -> compose_scene. No vocals,
+    # no portrait, no lipsync artifacts; a real video still comes out.
+    p = tmp_path / "dance.yaml"
+    p.write_text(
+        "song:\n  audio: fixtures/song.mp3\ntheme: a neon city\nmode: dance\n", encoding="utf-8"
+    )
+    with override_settings(
+        MEDIA_ROOT=tmp_path, PROVIDER_MODE="fake", TELEGRAM_BOT_TOKEN="", TELEGRAM_CHAT_ID=""
+    ):
+        job = create_job_from_preset(str(p))
+        assert job.mode == "dance"
+        run_job(job, eager=True)
+        job.refresh_from_db()
+        assert job.status == Job.Status.DELIVERED, job.error_detail
+        assert _ffprobe_has_video(Path(job.output_path))
+        kinds = set(Artifact.objects.filter(job=job).values_list("kind", flat=True))
+        assert "scene" in kinds
+        assert {"vocal_stem", "portrait", "lipsync"} & kinds == set()
 
 
 @pytest.mark.django_db

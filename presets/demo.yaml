@@ -13,6 +13,10 @@ song:
 
 theme: "neon synthwave city at night, rain, cinematic, ultra-detailed"
 
+# closeup = the singer method (Hedra lip-sync + matte + side characters). The
+# other mode is `dance` (one integrated scene-gen clip, no lip-sync).
+mode: closeup
+
 character:
   # The locked character's identity asset — a portrait reference (or LoRA ref
   # in real mode). Generated once, reused across every video in the series.

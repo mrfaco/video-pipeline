@@ -18,7 +18,13 @@ from celery import shared_task
 from django.conf import settings
 
 from compose.captions import build_ass, window_words
-from compose.ffmpeg import compose_final, composite_window, crop_window, probe_dimensions
+from compose.ffmpeg import (
+    compose_final,
+    compose_scene,
+    composite_window,
+    crop_window,
+    probe_dimensions,
+)
 from core.audio import clip_audio, normalize_loudness, parse_timerange
 from core.beat import detect_beat_period
 from core.context import JobContext
@@ -33,6 +39,7 @@ from providers.base import (
     get_lip_syncer,
     get_matter,
     get_portrait_generator,
+    get_scene_generator,
     get_video_lip_syncer,
     get_vocal_separator,
 )
@@ -134,6 +141,7 @@ def prepare_assets(job_id: str) -> dict:
     ctx = JobContext(
         job_id=job_id,
         theme=job.theme,
+        mode=job.mode,
         character_ref=job.character_ref,
         lyrics=(job.lyrics or None),
         enable_captions=bool(settings.ENABLE_CAPTIONS and job.lyrics),
@@ -153,6 +161,9 @@ def prepare_assets(job_id: str) -> dict:
 def separate_vocals(payload: dict) -> dict:
     ctx = JobContext.from_dict(payload)
     _advance(ctx.job_id, "separate_vocals")
+    if ctx.mode == "dance":
+        # Dance mode has no lip-sync, so it never needs the isolated vocal stem.
+        return ctx.to_dict()
     out = artifact_path(ctx.job_id, "vocal_stem.wav")
     get_vocal_separator().separate(_require_path(ctx.song_normalized_path), out)
     ctx.vocal_stem_path = str(out)
@@ -192,6 +203,19 @@ def align_captions(payload: dict) -> dict:
 def generate_visuals(payload: dict) -> dict:
     ctx = JobContext.from_dict(payload)
     _advance(ctx.job_id, "generate_visuals")
+
+    if ctx.mode == "dance":
+        # One integrated scene still (girl + environment), then animate it with
+        # the high-motion model. No greenscreen, no portrait, no separate bg.
+        prompt = settings.SCENE_PROMPT_TEMPLATE.format(theme=ctx.theme)
+        still = artifact_path(ctx.job_id, "scene_still.png")
+        get_scene_generator().generate(prompt, still)
+        _record(ctx.job_id, "generate_visuals", "scene_still", still)
+        clip = artifact_path(ctx.job_id, "scene_motion.mp4")
+        get_animator().animate(still, clip)
+        ctx.scene_clip_path = str(clip)
+        _record(ctx.job_id, "generate_visuals", "scene", clip)
+        return ctx.to_dict()
 
     background = get_background_generator()
     still = artifact_path(ctx.job_id, "background_still.png")
@@ -284,6 +308,9 @@ def _resync_head(moving: Path, audio: Path, raw: Path, job_id: str, name: str) -
 def lipsync_render(payload: dict) -> dict:
     ctx = JobContext.from_dict(payload)
     _advance(ctx.job_id, "lipsync_render")
+    if ctx.mode == "dance":
+        # Dance mode leaves lip-sync alone — the scene clip is the final motion.
+        return ctx.to_dict()
     # Talking-head models sync best on the isolated vocal stem; body-animating
     # models (OmniHuman) need the full mix to dance to the beat.
     if settings.LIPSYNC_AUDIO_SOURCE == "mix":
@@ -326,27 +353,44 @@ def compose_video(payload: dict) -> dict:
         beat_period = beat_offset = 0.0
         beat_zoom = base_zoom = 1.0
         shake_px = 0.0
-    compose_final(
-        background_loop=_require_path(ctx.background_loop_path),
-        character_clip=_require_path(ctx.lipsync_path),
-        backup_clip=backup_clip,
-        matted=settings.MATTING_ENABLED,
-        audio=audio,
-        captions=captions,
-        out_path=out,
-        intro_zoom=settings.INTRO_PUNCH_ZOOM,
-        intro_seconds=settings.INTRO_PUNCH_SECONDS,
-        beat_zoom=beat_zoom,
-        beat_period=beat_period,
-        beat_offset=beat_offset,
-        beat_decay=settings.BEAT_DECAY_SECONDS,
-        base_zoom=base_zoom,
-        shake_px=shake_px,
-        boss_height_frac=settings.TRIO_BOSS_HEIGHT_FRAC,
-        flank_height_frac=settings.TRIO_FLANK_HEIGHT_FRAC,
-        flank_y_frac=settings.TRIO_FLANK_Y_FRAC,
-        flank_peek_px=settings.TRIO_FLANK_PEEK_PX,
-    )
+    if ctx.mode == "dance":
+        # Single integrated scene clip — no overlay, no matte, no lip-sync layer.
+        compose_scene(
+            scene_clip=_require_path(ctx.scene_clip_path),
+            audio=audio,
+            captions=captions,
+            out_path=out,
+            intro_zoom=settings.INTRO_PUNCH_ZOOM,
+            intro_seconds=settings.INTRO_PUNCH_SECONDS,
+            beat_zoom=beat_zoom,
+            beat_period=beat_period,
+            beat_offset=beat_offset,
+            beat_decay=settings.BEAT_DECAY_SECONDS,
+            base_zoom=base_zoom,
+            shake_px=shake_px,
+        )
+    else:
+        compose_final(
+            background_loop=_require_path(ctx.background_loop_path),
+            character_clip=_require_path(ctx.lipsync_path),
+            backup_clip=backup_clip,
+            matted=settings.MATTING_ENABLED,
+            audio=audio,
+            captions=captions,
+            out_path=out,
+            intro_zoom=settings.INTRO_PUNCH_ZOOM,
+            intro_seconds=settings.INTRO_PUNCH_SECONDS,
+            beat_zoom=beat_zoom,
+            beat_period=beat_period,
+            beat_offset=beat_offset,
+            beat_decay=settings.BEAT_DECAY_SECONDS,
+            base_zoom=base_zoom,
+            shake_px=shake_px,
+            boss_height_frac=settings.TRIO_BOSS_HEIGHT_FRAC,
+            flank_height_frac=settings.TRIO_FLANK_HEIGHT_FRAC,
+            flank_y_frac=settings.TRIO_FLANK_Y_FRAC,
+            flank_peek_px=settings.TRIO_FLANK_PEEK_PX,
+        )
     ctx.output_path = str(out)
     Job.objects.filter(pk=ctx.job_id).update(output_path=str(out))
     _record(ctx.job_id, "compose_video", "output", out)
