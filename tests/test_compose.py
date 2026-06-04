@@ -78,6 +78,32 @@ def test_compose_final_without_captions(tmp_path):
     assert video_streams, "expected a video stream"
 
 
+def test_compose_final_kinetic_camera(tmp_path):
+    # Beat-pulse + intro punch + handheld shake all on: the zoompan pass must
+    # build a valid filtergraph and still produce a playable video.
+    out = compose_final(
+        background_loop=FIXTURES_DIR / "background_loop.mp4",
+        character_clip=FIXTURES_DIR / "character_lipsync.mp4",
+        audio=FIXTURES_DIR / "song.mp3",
+        captions=None,
+        out_path=tmp_path / "final_kinetic.mp4",
+        intro_zoom=1.35,
+        intro_seconds=0.4,
+        beat_zoom=1.08,
+        beat_period=0.5,
+        beat_offset=0.1,
+        beat_decay=0.18,
+        shake_px=6.0,
+    )
+
+    assert out.exists()
+    probe = _ffprobe(out)
+    video_streams = [s for s in probe["streams"] if s["codec_type"] == "video"]
+    assert video_streams, "expected a video stream"
+    assert int(video_streams[0]["width"]) == 1080
+    assert int(video_streams[0]["height"]) == 1920
+
+
 def test_compose_final_missing_background_raises(tmp_path):
     with pytest.raises(subprocess.CalledProcessError):
         compose_final(

@@ -285,13 +285,18 @@ ENABLE_CAPTIONS = env.bool("ENABLE_CAPTIONS", default=True)
 # never touches lip-sync timing. Set zoom to 1.0 to disable.
 INTRO_PUNCH_ZOOM = env.float("INTRO_PUNCH_ZOOM", default=1.35)
 INTRO_PUNCH_SECONDS = env.float("INTRO_PUNCH_SECONDS", default=0.4)
-# Recurring beat-pulse (the "drags at the end" fix). Parked at 1.0 (off): this
-# ffmpeg's crop can't re-evaluate size per frame (no eval=frame), so a proper
-# time-varying pulse needs a zoompan rework. The real motion lever is the
-# lip-sync model (OmniHuman); revisit compose-level pulses later.
-PULSE_ZOOM = env.float("PULSE_ZOOM", default=1.0)
-PULSE_INTERVAL_SECONDS = env.float("PULSE_INTERVAL_SECONDS", default=1.5)
-PULSE_DECAY_SECONDS = env.float("PULSE_DECAY_SECONDS", default=0.28)
+# Kinetic camera: a beat-synced zoom punch + always-on handheld shake, done
+# with a per-frame zoompan (which DOES re-evaluate every frame, unlike crop).
+# librosa detects the beat grid from the song; compose pulses BEAT_ZOOM on each
+# beat, decaying over BEAT_DECAY_SECONDS. KINETIC_SHAKE_PX adds a continuous
+# handheld jitter (compose auto-derives the crop headroom it needs over
+# KINETIC_BASE_ZOOM). Visual-only — never touches lip-sync timing. Set
+# KINETIC_ENABLED off, or BEAT_ZOOM=1.0 + shake=0, to disable.
+KINETIC_ENABLED = env.bool("KINETIC_ENABLED", default=True)
+BEAT_ZOOM = env.float("BEAT_ZOOM", default=1.06)
+BEAT_DECAY_SECONDS = env.float("BEAT_DECAY_SECONDS", default=0.18)
+KINETIC_BASE_ZOOM = env.float("KINETIC_BASE_ZOOM", default=1.0)
+KINETIC_SHAKE_PX = env.float("KINETIC_SHAKE_PX", default=6.0)
 # Force the WhisperX transcription language (ISO code, e.g. "es"). Empty =
 # auto-detect. Auto-detect is unreliable on short non-English clips, so set
 # this when the song isn't English. (A per-song preset field is the eventual

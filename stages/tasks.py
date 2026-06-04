@@ -20,6 +20,7 @@ from django.conf import settings
 from compose.captions import build_ass, window_words
 from compose.ffmpeg import compose_final
 from core.audio import clip_audio, normalize_loudness, parse_timerange
+from core.beat import detect_beat_period
 from core.context import JobContext
 from core.fetch import fetch_audio
 from core.storage import artifact_path
@@ -282,19 +283,34 @@ def compose_video(payload: dict) -> dict:
     out = artifact_path(ctx.job_id, "output.mp4")
     captions = Path(ctx.captions_path) if ctx.captions_path else None
     backup_clip = Path(ctx.backup_lipsync_path) if ctx.backup_lipsync_path else None
+    audio = _require_path(ctx.song_normalized_path)
+    # Detect the beat grid so compose can pulse the zoom on every beat. Disabled
+    # (or any failure) leaves beat_period at 0, which compose treats as off.
+    if settings.KINETIC_ENABLED:
+        beat_period, beat_offset = detect_beat_period(Path(audio))
+        beat_zoom = settings.BEAT_ZOOM
+        shake_px = settings.KINETIC_SHAKE_PX
+        base_zoom = settings.KINETIC_BASE_ZOOM
+    else:
+        beat_period = beat_offset = 0.0
+        beat_zoom = base_zoom = 1.0
+        shake_px = 0.0
     compose_final(
         background_loop=_require_path(ctx.background_loop_path),
         character_clip=_require_path(ctx.lipsync_path),
         backup_clip=backup_clip,
         matted=settings.MATTING_ENABLED,
-        audio=_require_path(ctx.song_normalized_path),
+        audio=audio,
         captions=captions,
         out_path=out,
         intro_zoom=settings.INTRO_PUNCH_ZOOM,
         intro_seconds=settings.INTRO_PUNCH_SECONDS,
-        pulse_zoom=settings.PULSE_ZOOM,
-        pulse_interval=settings.PULSE_INTERVAL_SECONDS,
-        pulse_decay=settings.PULSE_DECAY_SECONDS,
+        beat_zoom=beat_zoom,
+        beat_period=beat_period,
+        beat_offset=beat_offset,
+        beat_decay=settings.BEAT_DECAY_SECONDS,
+        base_zoom=base_zoom,
+        shake_px=shake_px,
     )
     ctx.output_path = str(out)
     Job.objects.filter(pk=ctx.job_id).update(output_path=str(out))

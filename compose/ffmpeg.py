@@ -111,9 +111,12 @@ def compose_final(
     chroma_color: str = "0x00FF00",
     intro_zoom: float = 1.0,
     intro_seconds: float = 0.4,
-    pulse_zoom: float = 1.0,
-    pulse_interval: float = 1.5,
-    pulse_decay: float = 0.28,
+    beat_zoom: float = 1.0,
+    beat_period: float = 0.0,
+    beat_offset: float = 0.0,
+    beat_decay: float = 0.18,
+    base_zoom: float = 1.0,
+    shake_px: float = 0.0,
 ) -> Path:
     """Render the final 9:16 mp4 and return ``out_path``.
 
@@ -121,18 +124,18 @@ def compose_final(
     (``character_clip``) flanked by two smaller backups (``backup_clip``, the
     right one mirrored). Without it, a single centered character.
 
-    Two scroll-stop motion effects, both visual-only (centered crop+rescale, so
-    audio/lip-sync timing is never touched):
+    The kinetic-camera pass (a single ``zoompan``, visual-only — audio/lip-sync
+    timing is untouched):
 
-    * ``intro_zoom`` > 1.0 — a one-time opening punch that settles to 1.0x over
-      ``intro_seconds``.
-    * ``pulse_zoom`` > 1.0 — a recurring beat-pulse every ``pulse_interval``
-      seconds (decaying over ``pulse_decay``) so the edit never goes static.
+    * ``intro_zoom`` > 1.0 — opening punch settling to 1.0x over ``intro_seconds``.
+    * ``beat_zoom`` > 1.0 with ``beat_period`` > 0 — a zoom punch on every beat
+      (decaying over ``beat_decay``), the period from audio beat detection.
+    * ``base_zoom`` > 1.0 — a slight always-on crop giving the shake room.
+    * ``shake_px`` > 0 — a continuous handheld camera jitter.
 
-    Each is disabled at <= 1.0.
+    All disabled at their <= defaults (then it's a passthrough).
 
-    Raises ``subprocess.CalledProcessError`` if any ffmpeg pass exits non-zero
-    (e.g. a missing input file).
+    Raises ``subprocess.CalledProcessError`` if any ffmpeg pass exits non-zero.
     """
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -181,21 +184,52 @@ def compose_final(
     else:
         filter_complex += ";[comp]null[pre]"
 
-    # Build the per-frame zoom factor from whichever motion effects are on.
-    # Centered crop by iw/zoom (crop centers by default), then rescale. Commas
-    # inside the expressions are quoted so the filtergraph parser keeps them.
-    zoom_terms = []
-    if intro_zoom > 1.0:
-        zoom_terms.append(
-            f"if(lt(t,{intro_seconds}),{intro_zoom}-({intro_zoom}-1)*t/{intro_seconds},1)"
-        )
-    if pulse_zoom > 1.0:
-        # Spikes to pulse_zoom at each interval, decays to 1.0 over pulse_decay.
-        zoom_terms.append(f"(1+({pulse_zoom}-1)*max(0,1-mod(t,{pulse_interval})/{pulse_decay}))")
+    # Kinetic-camera pass: a single zoompan animating the crop window per frame.
+    # zoompan re-evaluates ``on`` (output frame index) every frame; a plain crop
+    # with ``t`` does NOT animate in this ffmpeg build, so zoompan is the only
+    # way to get a per-frame zoom. Commas inside the expressions are escaped so
+    # the filtergraph parser keeps them as function args, not filter separators.
+    fps = 30
+    t = f"on/{fps}"  # seconds, from the (fps-normalised) frame index
 
-    if zoom_terms:
-        z = zoom_terms[0] if len(zoom_terms) == 1 else f"max({','.join(zoom_terms)})"
-        filter_complex += f";[pre]crop=w='iw/({z})':h='ih/({z})',scale={width}:{height}[v]"
+    # A continuous handheld jitter needs crop headroom or it shows black edges
+    # at the frame border, so derive a minimum base zoom that keeps the shifted
+    # crop window inside the source.
+    eff_base = base_zoom
+    if shake_px > 0.0:
+        needed = 1.0 / (1.0 - 2.0 * shake_px / width)
+        eff_base = max(eff_base, needed * 1.02)
+
+    terms = []
+    if eff_base > 1.0:
+        terms.append(f"{eff_base:.4f}")
+    if intro_zoom > 1.0:
+        terms.append(
+            f"if(lt({t}\\,{intro_seconds})\\,"
+            f"{intro_zoom}-({intro_zoom}-1)*({t})/{intro_seconds}\\,1)"
+        )
+    if beat_zoom > 1.0 and beat_period > 0.0:
+        # Spikes to beat_zoom on every beat, decaying to 1.0 over beat_decay.
+        terms.append(
+            f"1+({beat_zoom}-1)*max(0\\,1-mod({t}-{beat_offset}\\,{beat_period})/{beat_decay})"
+        )
+
+    if terms:
+        z = terms[0]
+        for term in terms[1:]:
+            z = f"max({z}\\,{term})"  # ffmpeg max() is binary; nest for >2 terms
+        if shake_px > 0.0:
+            # Two incommensurate frequencies read as organic handheld drift.
+            sx = f"+{shake_px}*sin(2*PI*{t}*5.3)"
+            sy = f"+{shake_px}*sin(2*PI*{t}*7.1)"
+        else:
+            sx = sy = ""
+        x = f"iw/2-(iw/zoom/2){sx}"
+        y = f"ih/2-(ih/zoom/2){sy}"
+        filter_complex += (
+            f";[pre]fps={fps}[pf];"
+            f"[pf]zoompan=z='{z}':x='{x}':y='{y}':d=1:s={width}x{height}:fps={fps}[v]"
+        )
     else:
         filter_complex += ";[pre]null[v]"
 

@@ -27,6 +27,9 @@ dependencies = [
     # (ytsearch) when a preset gives song.source instead of a local file.
     # Uses ffmpeg (already in the image) to extract to mp3.
     "yt-dlp>=2025.1",
+    # Beat detection for the kinetic-camera pass: compose pulses the zoom on
+    # every beat, so core.beat reads the beat grid off the normalized song.
+    "librosa>=0.10",
 ]
 
 [project.optional-dependencies]
