@@ -43,6 +43,7 @@ from providers.base import (
     get_video_lip_syncer,
     get_vocal_separator,
 )
+from providers.replicate import EmptyTranscriptionError
 from stages.base import PipelineTask
 
 logger = logging.getLogger(__name__)
@@ -163,8 +164,9 @@ def prepare_assets(job_id: str) -> dict:
 def separate_vocals(payload: dict) -> dict:
     ctx = JobContext.from_dict(payload)
     _advance(ctx.job_id, "separate_vocals")
-    if ctx.mode == "dance":
-        # Dance mode has no lip-sync, so it never needs the isolated vocal stem.
+    if ctx.mode == "dance" and not ctx.enable_captions:
+        # Dance has no lip-sync; it only needs the stem to caption (clean vocals
+        # transcribe far better than a full mix). No captions => skip Demucs.
         return ctx.to_dict()
     out = artifact_path(ctx.job_id, "vocal_stem.wav")
     get_vocal_separator().separate(_require_path(ctx.song_normalized_path), out)
@@ -180,11 +182,22 @@ def align_captions(payload: dict) -> dict:
     if not ctx.enable_captions:
         logger.info("Captions disabled for job %s; skipping alignment.", ctx.job_id)
         return ctx.to_dict()
-    # Transcribe the FULL song (WhisperX's VAD is unreliable on a short
-    # isolated clip but nails the full mix), then window the words down to the
-    # clip and rebase them into clip time.
+    # Closeup transcribes the FULL song guided by its known lyrics (WhisperX's
+    # VAD is unreliable on a short clip but nails the full mix with a prompt).
+    # Dance has no lyrics, so transcribe the isolated vocal stem instead — clean
+    # vocals transcribe far better than a music-laden full mix.
+    transcribe_source = (
+        ctx.vocal_stem_path if (ctx.mode == "dance" and ctx.vocal_stem_path) else ctx.song_full_path
+    )
     full_words = artifact_path(ctx.job_id, "word_timestamps_full.json")
-    get_caption_aligner().align(_require_path(ctx.song_full_path), ctx.lyrics, full_words)
+    try:
+        get_caption_aligner().align(_require_path(transcribe_source), ctx.lyrics, full_words)
+    except EmptyTranscriptionError:  # allow: suppress-exception
+        # Instrumental / untranscribable audio yields no words — captions are
+        # best-effort, so skip them and still deliver the video rather than
+        # failing an otherwise-finished render.
+        logger.warning("No transcribable words for job %s; rendering without captions.", ctx.job_id)
+        return ctx.to_dict()
 
     words = artifact_path(ctx.job_id, "word_timestamps.json")
     if ctx.clip_end_s > 0:

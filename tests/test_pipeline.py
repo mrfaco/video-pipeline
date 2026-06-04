@@ -252,10 +252,10 @@ def test_pipeline_dance_mode(tmp_path):
         assert job.status == Job.Status.DELIVERED, job.error_detail
         assert _ffprobe_has_video(Path(job.output_path))
         kinds = set(Artifact.objects.filter(job=job).values_list("kind", flat=True))
-        # Dance auto-transcribes the song → karaoke captions, but no greenscreen
-        # portrait, vocal stem, or lip-sync layer.
-        assert {"scene", "captions"} <= kinds
-        assert {"vocal_stem", "portrait", "lipsync"} & kinds == set()
+        # Dance separates vocals only to transcribe them into karaoke captions —
+        # no greenscreen portrait and no lip-sync layer.
+        assert {"scene", "captions", "vocal_stem"} <= kinds
+        assert {"portrait", "lipsync"} & kinds == set()
 
 
 @pytest.mark.django_db
@@ -296,6 +296,38 @@ def test_pipeline_skips_captions_without_lyrics(tmp_path):
         assert Path(job.output_path).is_file()
         kinds = set(Artifact.objects.filter(job=job).values_list("kind", flat=True))
         assert "captions" not in kinds
+
+
+@pytest.mark.django_db
+def test_align_captions_skips_on_empty_transcription(tmp_path, monkeypatch):
+    # An untranscribable (instrumental) song must NOT fail the render — captions
+    # are best-effort, so the stage skips them and returns cleanly.
+    from providers.replicate import EmptyTranscriptionError
+
+    class _EmptyAligner:
+        def align(self, audio_path, lyrics, out_path):
+            raise EmptyTranscriptionError("no words")
+
+    import stages.tasks as tasks_mod
+
+    monkeypatch.setattr(tasks_mod, "get_caption_aligner", lambda: _EmptyAligner())
+    with override_settings(MEDIA_ROOT=tmp_path):
+        dance = tmp_path / "d.yaml"
+        dance.write_text(
+            "song:\n  audio: fixtures/song.mp3\ntheme: t\nmode: dance\n", encoding="utf-8"
+        )
+        job = create_job_from_preset(str(dance))
+        ctx = JobContext(
+            job_id=str(job.job_id),
+            theme="t",
+            character_ref="",
+            song_path="s",
+            mode="dance",
+            enable_captions=True,
+            song_full_path=str(Path("fixtures/song.mp3")),
+        )
+        out = tasks_mod.align_captions(ctx.to_dict())
+    assert JobContext.from_dict(out).captions_path is None
 
 
 # --- failure bookkeeping --------------------------------------------------

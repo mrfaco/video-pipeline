@@ -22,6 +22,15 @@ from django.conf import settings
 
 from providers.base import ProviderConfigError
 
+
+class EmptyTranscriptionError(ProviderConfigError):
+    """WhisperX returned no usable words (instrumental / untranscribable audio).
+
+    Distinct from a misconfiguration so callers can treat it as "no captions
+    available" — best-effort captioning skips it instead of failing the render.
+    """
+
+
 # Generous ceiling — model cold-starts and long renders take real time.
 _HTTP_TIMEOUT = httpx.Timeout(600.0)
 
@@ -207,7 +216,9 @@ class RealWhisperXAligner:
                     raw_words.extend(segment["words"])
 
         if not raw_words:
-            raise ProviderConfigError(f"WhisperX output carried no word segments: {output!r}")
+            raise EmptyTranscriptionError(
+                f"WhisperX output carried no word segments: {output!r}"
+            )
 
         # WhisperX leaves some tokens (numbers, punctuation) without alignment
         # timings — those can't be captioned, so drop them. This is correct
@@ -219,5 +230,5 @@ class RealWhisperXAligner:
             if isinstance(word, dict) and {"word", "start", "end"} <= word.keys()
         ]
         if not segments:
-            raise ProviderConfigError(f"WhisperX returned no aligned words: {output!r}")
+            raise EmptyTranscriptionError(f"WhisperX returned no aligned words: {output!r}")
         return segments
