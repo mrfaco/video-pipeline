@@ -175,6 +175,19 @@ REPLICATE_WHISPERX_MODEL = env(
 # fal — FLUX still + portrait, image->video background loop.
 FAL_KEY = env("FAL_KEY", default="")
 FAL_FLUX_MODEL = env("FAL_FLUX_MODEL", default="fal-ai/flux/dev")
+# Dance mode: one integrated scene still (girl + environment together), then
+# animated by the Kling animator. DEFAULT_MODE is the fallback when a preset
+# omits ``mode:``. The prompt template gets ``{theme}`` substituted in.
+DEFAULT_MODE = env("DEFAULT_MODE", default="dance")
+SCENE_IMAGE_MODEL = env("SCENE_IMAGE_MODEL", default="fal-ai/flux-pro/v1.1-ultra")
+SCENE_PROMPT_TEMPLATE = env(
+    "SCENE_PROMPT_TEMPLATE",
+    default=(
+        "a stunning attractive young woman dancing energetically in {theme}, "
+        "full body in frame, dynamic pose, cinematic lighting, photorealistic, "
+        "highly detailed, vertical 9:16 composition, scroll-stopping"
+    ),
+)
 FAL_IMAGE_TO_VIDEO_MODEL = env("FAL_IMAGE_TO_VIDEO_MODEL", default="fal-ai/wan-i2v")
 # Invariant style layer appended to the per-video character identity (from the
 # preset's character.description). Carries the project's look + the MANDATORY

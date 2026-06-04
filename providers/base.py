@@ -67,6 +67,13 @@ class PortraitGenerator(Protocol):
 
 
 @runtime_checkable
+class SceneGenerator(Protocol):
+    def generate(self, prompt: str, out_path: Path) -> Path:
+        """One integrated scene still (character + environment) for dance mode."""
+        ...
+
+
+@runtime_checkable
 class LipSyncer(Protocol):
     def sync(self, portrait_path: Path, audio_path: Path, out_path: Path) -> Path:
         """Talking-head clip: portrait lip-synced to ``audio_path``."""
@@ -136,6 +143,16 @@ def get_portrait_generator() -> PortraitGenerator:
     from providers.fal import RealFalPortraitGenerator  # noqa: PLC0415
 
     return RealFalPortraitGenerator()
+
+
+def get_scene_generator() -> SceneGenerator:
+    if _is_fake():
+        from providers.fakes import FakeSceneGenerator  # noqa: PLC0415
+
+        return FakeSceneGenerator()
+    from providers.fal import RealFalSceneGenerator  # noqa: PLC0415
+
+    return RealFalSceneGenerator()
 
 
 def get_matter() -> Matter:

@@ -111,6 +111,28 @@ def test_real_fal_background_requires_key() -> None:
         RealFalBackgroundGenerator()
 
 
+@override_settings(PROVIDER_MODE="fake")
+def test_get_scene_generator_fake() -> None:
+    from providers.fakes import FakeSceneGenerator
+
+    assert isinstance(base.get_scene_generator(), FakeSceneGenerator)
+
+
+def test_fake_scene_generator_writes_image(tmp_path) -> None:
+    from providers.fakes import FakeSceneGenerator
+
+    out = FakeSceneGenerator().generate("a girl dancing in a field", tmp_path / "scene.png")
+    assert out.is_file()
+
+
+@override_settings(PROVIDER_MODE="real", FAL_KEY="")
+def test_real_fal_scene_requires_key() -> None:
+    from providers.fal import RealFalSceneGenerator
+
+    with pytest.raises(ProviderConfigError):
+        RealFalSceneGenerator()
+
+
 @override_settings(PROVIDER_MODE="real", FAL_KEY="")
 def test_real_fal_portrait_requires_key() -> None:
     with pytest.raises(ProviderConfigError):

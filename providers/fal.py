@@ -83,6 +83,29 @@ class RealFalBackgroundGenerator:
         return _download(_result_url(result, "video"), out_path)
 
 
+class RealFalSceneGenerator:
+    """One integrated scene still (girl + environment together) for dance mode.
+
+    Unlike the portrait generator, there's no greenscreen and no compositing —
+    the model draws the character inside the scene so the dance clip is a single
+    cohesive frame. Vertical 9:16 to match the canvas.
+    """
+
+    def __init__(self) -> None:
+        if not settings.FAL_KEY:
+            raise ProviderConfigError("FAL_KEY is empty; required for RealFalSceneGenerator.")
+        self._model = settings.SCENE_IMAGE_MODEL
+
+    def generate(self, prompt: str, out_path: Path) -> Path:
+        import fal_client  # noqa: PLC0415  (heavy optional SDK, real-mode only)
+
+        result = fal_client.subscribe(
+            self._model,
+            arguments={"prompt": prompt, "aspect_ratio": "9:16"},
+        )
+        return _download(_result_url(result, "images"), out_path)
+
+
 class RealFalPortraitGenerator:
     """Ultra-realistic greenscreen portrait via FLUX on fal."""
 

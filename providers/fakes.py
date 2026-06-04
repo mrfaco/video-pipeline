@@ -60,6 +60,13 @@ class FakePortraitGenerator:
         return _copy_fixture("character_portrait.png", out_path)
 
 
+class FakeSceneGenerator:
+    """Returns a bundled still as the integrated dance scene (no network)."""
+
+    def generate(self, prompt: str, out_path: Path) -> Path:
+        return _copy_fixture("background_still.png", out_path)
+
+
 class FakeLipSyncer:
     """Returns the bundled talking-head clip instead of calling a vendor."""
 
