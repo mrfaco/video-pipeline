@@ -144,7 +144,9 @@ def prepare_assets(job_id: str) -> dict:
         mode=job.mode,
         character_ref=job.character_ref,
         lyrics=(job.lyrics or None),
-        enable_captions=bool(settings.ENABLE_CAPTIONS and job.lyrics),
+        # Closeup needs known lyrics to caption; dance auto-transcribes the song
+        # with WhisperX (no lyrics needed), so it always captions when enabled.
+        enable_captions=bool(settings.ENABLE_CAPTIONS and (job.lyrics or job.mode == "dance")),
         character_image=(job.character_image or None),
         backup_character_ref=(job.backup_character_ref or None),
         backup_character_image=(job.backup_character_image or None),
@@ -175,9 +177,6 @@ def separate_vocals(payload: dict) -> dict:
 def align_captions(payload: dict) -> dict:
     ctx = JobContext.from_dict(payload)
     _advance(ctx.job_id, "align_captions")
-    if ctx.mode == "dance":
-        # Dance videos carry no captions — the visuals carry it. Skip WhisperX.
-        return ctx.to_dict()
     if not ctx.enable_captions:
         logger.info("Captions disabled for job %s; skipping alignment.", ctx.job_id)
         return ctx.to_dict()

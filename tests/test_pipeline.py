@@ -252,8 +252,10 @@ def test_pipeline_dance_mode(tmp_path):
         assert job.status == Job.Status.DELIVERED, job.error_detail
         assert _ffprobe_has_video(Path(job.output_path))
         kinds = set(Artifact.objects.filter(job=job).values_list("kind", flat=True))
-        assert "scene" in kinds
-        assert {"vocal_stem", "portrait", "lipsync", "captions"} & kinds == set()
+        # Dance auto-transcribes the song → karaoke captions, but no greenscreen
+        # portrait, vocal stem, or lip-sync layer.
+        assert {"scene", "captions"} <= kinds
+        assert {"vocal_stem", "portrait", "lipsync"} & kinds == set()
 
 
 @pytest.mark.django_db
