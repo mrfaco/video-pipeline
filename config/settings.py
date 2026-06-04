@@ -309,10 +309,10 @@ INTRO_PUNCH_SECONDS = env.float("INTRO_PUNCH_SECONDS", default=0.4)
 # KINETIC_BASE_ZOOM). Visual-only — never touches lip-sync timing. Set
 # KINETIC_ENABLED off, or BEAT_ZOOM=1.0 + shake=0, to disable.
 KINETIC_ENABLED = env.bool("KINETIC_ENABLED", default=True)
-BEAT_ZOOM = env.float("BEAT_ZOOM", default=1.06)
+BEAT_ZOOM = env.float("BEAT_ZOOM", default=1.035)
 BEAT_DECAY_SECONDS = env.float("BEAT_DECAY_SECONDS", default=0.18)
 KINETIC_BASE_ZOOM = env.float("KINETIC_BASE_ZOOM", default=1.0)
-KINETIC_SHAKE_PX = env.float("KINETIC_SHAKE_PX", default=6.0)
+KINETIC_SHAKE_PX = env.float("KINETIC_SHAKE_PX", default=2.5)
 # Force the WhisperX transcription language (ISO code, e.g. "es"). Empty =
 # auto-detect. Auto-detect is unreliable on short non-English clips, so set
 # this when the song isn't English. (A per-song preset field is the eventual
