@@ -1,8 +1,14 @@
 # The pink girl in CLOSE-UP (head-and-shoulders crop) singing in front of a
-# black hole, flanked by two small floating moons with faces. The close-up
-# means the face fills the frame, so the whole-clip lip-sync is sharp on its
-# own (run with RESYNC_LAYER_ENABLED=False) and the moons are small + floated
-# via the TRIO_FLANK_* knobs.
+# black hole, flanked by two small floating moons with faces.
+#
+# A close-up singing face wants a frontal TALKING-HEAD model, not Kling
+# (motion_first makes the face look down/away, which breaks lip-sync). Run in
+# lipsync mode with Hedra, and float the small moons via the TRIO_FLANK_* knobs:
+#
+#   PROVIDER_MODE=real MOTION_MODE=lipsync LIPSYNC_PROVIDER=hedra \
+#   TRIO_BOSS_HEIGHT_FRAC=0.72 TRIO_FLANK_HEIGHT_FRAC=0.20 \
+#   TRIO_FLANK_Y_FRAC=0.32 TRIO_FLANK_PEEK_PX=-25 \
+#   ./venv/bin/python manage.py run_job presets/pink_blackhole_closeup.yaml --sync
 
 song:
   source: "https://vt.tiktok.com/ZSQefxEen/"
