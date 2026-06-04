@@ -378,13 +378,18 @@ def compose_video(payload: dict) -> dict:
     loop_closeup = ctx.mode != "dance" and settings.LOOP_SEAMLESS_ENABLED
     compose_target = artifact_path(ctx.job_id, "prewrap.mp4") if loop_closeup else out
     if ctx.mode == "dance":
+        # The intro zoom-punch fights a seamless loop (frame 0 would be zoomed in
+        # vs the last frame, and the punch re-triggers each loop). Drop it when
+        # looping so the Kling end-frame loop stays seam-free; the beat pulse
+        # still carries the energy.
+        dance_intro = 1.0 if settings.LOOP_SEAMLESS_ENABLED else settings.INTRO_PUNCH_ZOOM
         # Single integrated scene clip — no overlay, no matte, no lip-sync layer.
         compose_scene(
             scene_clip=_require_path(ctx.scene_clip_path),
             audio=audio,
             captions=captions,
             out_path=out,
-            intro_zoom=settings.INTRO_PUNCH_ZOOM,
+            intro_zoom=dance_intro,
             intro_seconds=settings.INTRO_PUNCH_SECONDS,
             beat_zoom=beat_zoom,
             beat_period=beat_period,
