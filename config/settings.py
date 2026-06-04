@@ -180,12 +180,19 @@ FAL_FLUX_MODEL = env("FAL_FLUX_MODEL", default="fal-ai/flux/dev")
 # omits ``mode:``. The prompt template gets ``{theme}`` substituted in.
 DEFAULT_MODE = env("DEFAULT_MODE", default="dance")
 SCENE_IMAGE_MODEL = env("SCENE_IMAGE_MODEL", default="fal-ai/flux-pro/v1.1-ultra")
+# NOTE: clothing is described explicitly and modestly on purpose — revealing
+# outfits (bikini / crop top / skimpy) get the videos age-restricted and
+# suppressed on TikTok/Reels (→ ~0 views). Keep her stylish and fully dressed.
 SCENE_PROMPT_TEMPLATE = env(
     "SCENE_PROMPT_TEMPLATE",
     default=(
-        "a stunning attractive young woman dancing energetically in {theme}, "
-        "full body in frame, dynamic pose, cinematic lighting, photorealistic, "
-        "highly detailed, vertical 9:16 composition, scroll-stopping"
+        "a stylish attractive young woman dancing energetically in {theme}, "
+        "wearing a fashionable trendy outfit that fully covers her — modern "
+        "streetwear, a chic jacket with long pants or a flowing midi dress, "
+        "modest and tasteful, fully clothed, no bikini, no crop top, no exposed "
+        "midriff, no revealing or skimpy clothing, "
+        "full body in frame, dynamic confident pose, cinematic lighting, "
+        "photorealistic, highly detailed, vertical 9:16 composition, scroll-stopping"
     ),
 )
 FAL_IMAGE_TO_VIDEO_MODEL = env("FAL_IMAGE_TO_VIDEO_MODEL", default="fal-ai/wan-i2v")
