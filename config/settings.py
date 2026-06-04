@@ -313,6 +313,15 @@ BEAT_ZOOM = env.float("BEAT_ZOOM", default=1.035)
 BEAT_DECAY_SECONDS = env.float("BEAT_DECAY_SECONDS", default=0.18)
 KINETIC_BASE_ZOOM = env.float("KINETIC_BASE_ZOOM", default=1.0)
 KINETIC_SHAKE_PX = env.float("KINETIC_SHAKE_PX", default=2.5)
+# Trio layout knobs (as fractions of canvas height, except peek in px). Boss is
+# the centre character; flanks are the two mirrored backups. flank_y_frac < 0
+# bottom-anchors them (half-body dancers); >= 0 floats their centre at that
+# height (small round companions like moons). flank_peek_px > 0 pushes flanks
+# past the side edges; negative insets them fully on-screen.
+TRIO_BOSS_HEIGHT_FRAC = env.float("TRIO_BOSS_HEIGHT_FRAC", default=0.64)
+TRIO_FLANK_HEIGHT_FRAC = env.float("TRIO_FLANK_HEIGHT_FRAC", default=0.41)
+TRIO_FLANK_Y_FRAC = env.float("TRIO_FLANK_Y_FRAC", default=-1.0)
+TRIO_FLANK_PEEK_PX = env.int("TRIO_FLANK_PEEK_PX", default=40)
 # Force the WhisperX transcription language (ISO code, e.g. "es"). Empty =
 # auto-detect. Auto-detect is unreliable on short non-English clips, so set
 # this when the song isn't English. (A per-song preset field is the eventual

@@ -220,6 +220,10 @@ def compose_final(
     beat_decay: float = 0.18,
     base_zoom: float = 1.0,
     shake_px: float = 0.0,
+    boss_height_frac: float = _BOSS_HEIGHT_FRAC,
+    flank_height_frac: float = _FLANK_HEIGHT_FRAC,
+    flank_y_frac: float = -1.0,
+    flank_peek_px: int = _FLANK_PEEK_PX,
 ) -> Path:
     """Render the final 9:16 mp4 and return ``out_path``.
 
@@ -263,15 +267,23 @@ def compose_final(
     audio_idx = 3 if backup_clip is not None else 2
 
     if backup_clip is not None:
-        boss_h = int(height * _BOSS_HEIGHT_FRAC)
-        flank_h = int(height * _FLANK_HEIGHT_FRAC)
+        boss_h = int(height * boss_height_frac)
+        flank_h = int(height * flank_height_frac)
+        # Flanks: bottom-anchored by default (flank_y_frac < 0), or floated with
+        # their vertical CENTRE at flank_y_frac of the canvas (e.g. moons in the
+        # sky). flank_peek_px > 0 pushes them past the edge (half-body backups);
+        # negative insets them fully on-screen (small round companions).
+        if flank_y_frac < 0:
+            flank_y = f"H-h-{_BOTTOM_MARGIN_PX}"
+        else:
+            flank_y = f"{int(height * flank_y_frac)}-h/2"
         fg = (
             f"[2:v]{key}split[bk1][bk2];"
             f"[bk1]scale=-1:{flank_h}[lf];"
             f"[bk2]scale=-1:{flank_h},hflip[rf];"
             f"[1:v]{key}scale=-1:{boss_h}[boss];"
-            f"[bg][lf]overlay=x=-{_FLANK_PEEK_PX}:y=H-h-{_BOTTOM_MARGIN_PX}[t1];"
-            f"[t1][rf]overlay=x=W-w+{_FLANK_PEEK_PX}:y=H-h-{_BOTTOM_MARGIN_PX}[t2];"
+            f"[bg][lf]overlay=x=-{flank_peek_px}:y={flank_y}[t1];"
+            f"[t1][rf]overlay=x=W-w+{flank_peek_px}:y={flank_y}[t2];"
             f"[t2][boss]overlay=x=(W-w)/2:y=H-h-10[comp]"
         )
     else:

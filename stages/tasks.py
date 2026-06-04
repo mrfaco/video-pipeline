@@ -342,6 +342,10 @@ def compose_video(payload: dict) -> dict:
         beat_decay=settings.BEAT_DECAY_SECONDS,
         base_zoom=base_zoom,
         shake_px=shake_px,
+        boss_height_frac=settings.TRIO_BOSS_HEIGHT_FRAC,
+        flank_height_frac=settings.TRIO_FLANK_HEIGHT_FRAC,
+        flank_y_frac=settings.TRIO_FLANK_Y_FRAC,
+        flank_peek_px=settings.TRIO_FLANK_PEEK_PX,
     )
     ctx.output_path = str(out)
     Job.objects.filter(pk=ctx.job_id).update(output_path=str(out))

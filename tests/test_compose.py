@@ -128,6 +128,26 @@ def test_composite_window_pastes_back_seamlessly(tmp_path):
     assert probe_dimensions(out) == (fw, fh)
 
 
+def test_compose_final_trio_floating_small_flanks(tmp_path):
+    # Close-up boss + small floating flanks (the moons layout): custom fractions
+    # and a >= 0 flank_y_frac (centre-floated) plus an inset (negative peek) must
+    # still compose a valid full-size video.
+    out = compose_final(
+        background_loop=FIXTURES_DIR / "background_loop.mp4",
+        character_clip=FIXTURES_DIR / "character_lipsync.mp4",
+        backup_clip=FIXTURES_DIR / "character_lipsync.mp4",
+        audio=FIXTURES_DIR / "song.mp3",
+        captions=None,
+        out_path=tmp_path / "trio_moons.mp4",
+        boss_height_frac=0.72,
+        flank_height_frac=0.2,
+        flank_y_frac=0.32,
+        flank_peek_px=-25,
+    )
+    assert out.exists()
+    assert probe_dimensions(out) == (1080, 1920)
+
+
 def test_compose_final_missing_background_raises(tmp_path):
     with pytest.raises(subprocess.CalledProcessError):
         compose_final(

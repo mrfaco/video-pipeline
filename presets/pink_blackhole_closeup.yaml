@@ -1,0 +1,16 @@
+# The pink girl in CLOSE-UP (head-and-shoulders crop) singing in front of a
+# black hole, flanked by two small floating moons with faces. The close-up
+# means the face fills the frame, so the whole-clip lip-sync is sharp on its
+# own (run with RESYNC_LAYER_ENABLED=False) and the moons are small + floated
+# via the TRIO_FLANK_* knobs.
+
+song:
+  source: "https://vt.tiktok.com/ZSQefxEen/"
+
+theme: "a colossal black hole in deep space, glowing orange accretion disk swirling around a pitch-black event horizon, gravitational lensing bending starlight, distant stars, cinematic, ultra-detailed, no people"
+
+character:
+  image: presets/characters/pink_girl_closeup.png   # head-and-shoulders close-up
+
+backup:
+  description: "a small round cratered moon with a cute face — two big googly eyes and a soft smile, glowing softly, floating in space"
