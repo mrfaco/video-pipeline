@@ -236,13 +236,29 @@ KLING_CFG = env.float("KLING_CFG", default=0.8)
 KLING_MOTION_PROMPT = env(
     "KLING_MOTION_PROMPT",
     default=(
-        "the character aggressively bobs its head up and down with maximum momentum, "
-        "bouncing hard side to side, explosive energetic dancing, jumping, arms swinging, "
-        "kinetic high-energy motion, mouth snapping open and shut rhythmically to a heavy beat"
+        "the character dances energetically — bobbing its head, swaying and bouncing "
+        "to a heavy beat, arms moving rhythmically — while staying fully within the frame: "
+        "the entire body, head and hands remain visible at all times, never cropped, no "
+        "jumping out of frame. The mouth stays relaxed and mostly closed (a separate "
+        "lip-sync pass adds the singing), the camera holds steady on the full body"
     ),
 )
 # Video lip-sync (maps a mouth onto an already-moving clip) for motion_first.
 VIDEO_LIPSYNC_MODEL = env("VIDEO_LIPSYNC_MODEL", default="fal-ai/sync-lipsync/v2")
+
+# Resync layer (motion_first only): Kling animates a small face in a full-body
+# shot, so a whole-clip lip-sync barely moves the mouth. Instead, crop the head
+# region, upscale it so the face is large, lip-sync THAT, then paste it back
+# over the moving body (only the mouth differs, so the feathered blend is
+# seamless). Window is a fraction of the 1080x1920 frame, generous enough to
+# hold the head through the whole dance.
+RESYNC_LAYER_ENABLED = env.bool("RESYNC_LAYER_ENABLED", default=True)
+RESYNC_WIN_X_FRAC = env.float("RESYNC_WIN_X_FRAC", default=0.16)
+RESYNC_WIN_Y_FRAC = env.float("RESYNC_WIN_Y_FRAC", default=0.02)
+RESYNC_WIN_W_FRAC = env.float("RESYNC_WIN_W_FRAC", default=0.68)
+RESYNC_WIN_H_FRAC = env.float("RESYNC_WIN_H_FRAC", default=0.46)
+RESYNC_UPSCALE_H = env.int("RESYNC_UPSCALE_H", default=1280)
+RESYNC_FEATHER_PX = env.int("RESYNC_FEATHER_PX", default=48)
 
 # Matting: after lip-sync, cut the character out by SUBJECT segmentation
 # (BiRefNet on fal) instead of chroma-keying green — so green clothes, green

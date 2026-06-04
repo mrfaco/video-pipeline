@@ -1,0 +1,15 @@
+# The same pink girl (saved greenscreen portrait, used as-is) dancing in a
+# flower field, flanked by two mirrored flower-creature companions (trio
+# layout). Subject matting cuts each out cleanly, so the flower companions can
+# be any colour without the greenscreen eating them.
+
+song:
+  source: "https://vt.tiktok.com/ZSQJv5f4m/"
+
+theme: "a vast dreamy field of wildflowers in bloom — pink, yellow and white blossoms stretching to the horizon, soft golden hour sunlight, gentle breeze, shallow depth of field, cinematic, ultra-detailed, no people"
+
+character:
+  image: presets/characters/pink_girl.png   # the boss (centre, large)
+
+backup:
+  description: "a giant friendly flower creature, bright red and yellow petals around a soft face with two big googly eyes and a closed-lip smile, short green stem legs, dancing"

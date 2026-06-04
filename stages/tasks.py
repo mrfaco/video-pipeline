@@ -18,7 +18,7 @@ from celery import shared_task
 from django.conf import settings
 
 from compose.captions import build_ass, window_words
-from compose.ffmpeg import compose_final
+from compose.ffmpeg import compose_final, composite_window, crop_window, probe_dimensions
 from core.audio import clip_audio, normalize_loudness, parse_timerange
 from core.beat import detect_beat_period
 from core.context import JobContext
@@ -240,13 +240,44 @@ def _render_character(portrait: Path, audio: Path, job_id: str, name: str) -> Pa
         # Kling caps at KLING_DURATION; clip the audio to match before syncing.
         capped = artifact_path(job_id, f"{name}_audio.mp3")
         clip_audio(audio, capped, 0.0, float(settings.KLING_DURATION))
-        get_video_lip_syncer().sync_video(moving, capped, raw)
+        if settings.RESYNC_LAYER_ENABLED:
+            _resync_head(moving, capped, raw, job_id, name)
+        else:
+            get_video_lip_syncer().sync_video(moving, capped, raw)
     else:
         get_lip_syncer().sync(portrait, audio, raw)
 
     if not settings.MATTING_ENABLED:
         return raw
     return get_matter().matte(raw, artifact_path(job_id, f"{name}.webm"))
+
+
+def _resync_head(moving: Path, audio: Path, raw: Path, job_id: str, name: str) -> Path:
+    """Lip-sync a full-body Kling clip by correcting only the head region.
+
+    The face is tiny in a full-body shot, so a whole-clip sync barely moves the
+    mouth. Instead: crop the head window, upscale it so the face is large,
+    lip-sync that crop, then paste it back over the moving body (only the mouth
+    changed, so the feathered blend is seamless). Writes ``raw`` and returns it.
+    """
+    w_frame, h_frame = probe_dimensions(moving)
+
+    def _even(v: float) -> int:
+        return int(v) - (int(v) % 2)
+
+    x = _even(w_frame * settings.RESYNC_WIN_X_FRAC)
+    y = _even(h_frame * settings.RESYNC_WIN_Y_FRAC)
+    w = _even(w_frame * settings.RESYNC_WIN_W_FRAC)
+    h = _even(h_frame * settings.RESYNC_WIN_H_FRAC)
+
+    head = artifact_path(job_id, f"{name}_head.mp4")
+    crop_window(moving, head, x=x, y=y, w=w, h=h, out_h=settings.RESYNC_UPSCALE_H)
+    head_synced = artifact_path(job_id, f"{name}_head_synced.mp4")
+    get_video_lip_syncer().sync_video(head, audio, head_synced)
+    composite_window(
+        moving, head_synced, raw, x=x, y=y, w=w, h=h, feather=settings.RESYNC_FEATHER_PX
+    )
+    return raw
 
 
 @shared_task(**_TASK_OPTS)

@@ -10,7 +10,7 @@ import pytest
 from django.conf import settings
 
 from compose.captions import build_ass
-from compose.ffmpeg import compose_final
+from compose.ffmpeg import compose_final, composite_window, crop_window, probe_dimensions
 
 FIXTURES_DIR = Path(settings.FIXTURES_DIR)
 
@@ -102,6 +102,30 @@ def test_compose_final_kinetic_camera(tmp_path):
     assert video_streams, "expected a video stream"
     assert int(video_streams[0]["width"]) == 1080
     assert int(video_streams[0]["height"]) == 1920
+
+
+def test_crop_window_upscales_head_region(tmp_path):
+    src = FIXTURES_DIR / "character_lipsync.mp4"
+    fw, fh = probe_dimensions(src)
+    out = crop_window(
+        src, tmp_path / "head.mp4", x=0, y=0, w=fw // 2, h=fh // 2, out_h=720
+    )
+    assert out.exists()
+    ow, oh = probe_dimensions(out)
+    assert oh == 720  # upscaled to the requested height
+    assert ow % 2 == 0  # width kept even for yuv420p
+
+
+def test_composite_window_pastes_back_seamlessly(tmp_path):
+    # Crop a window, then paste it straight back at the same spot: the result
+    # must still be a valid same-size video (the feather blend must compose).
+    base = FIXTURES_DIR / "character_lipsync.mp4"
+    fw, fh = probe_dimensions(base)
+    x, y, w, h = 0, 0, (fw // 2) - (fw // 2) % 2, (fh // 2) - (fh // 2) % 2
+    patch = crop_window(base, tmp_path / "patch.mp4", x=x, y=y, w=w, h=h, out_h=480)
+    out = composite_window(base, patch, tmp_path / "merged.mp4", x=x, y=y, w=w, h=h, feather=24)
+    assert out.exists()
+    assert probe_dimensions(out) == (fw, fh)
 
 
 def test_compose_final_missing_background_raises(tmp_path):

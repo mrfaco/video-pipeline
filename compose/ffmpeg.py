@@ -61,6 +61,29 @@ def _probe_duration(path: Path) -> float:
     return float(out.stdout.strip())
 
 
+def probe_dimensions(path: Path) -> tuple[int, int]:
+    """Return the (width, height) of a video's first video stream via ffprobe."""
+    out = subprocess.run(
+        [
+            "ffprobe",
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "stream=width,height",
+            "-of",
+            "csv=p=0:s=x",
+            str(path),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    w, _, h = out.partition("x")
+    return int(w), int(h)
+
+
 def _make_boomerang(source: Path, out_path: Path) -> Path:
     """Write a forward+reverse (boomerang) copy of ``source`` for seamless looping."""
     cmd = [
@@ -73,6 +96,86 @@ def _make_boomerang(source: Path, out_path: Path) -> Path:
         "-map",
         "[v]",
         "-an",
+        *_VIDEO_ENCODE,
+        str(out_path),
+    ]
+    _run(cmd)
+    return out_path
+
+
+def crop_window(
+    video_in: Path, out_path: Path, *, x: int, y: int, w: int, h: int, out_h: int
+) -> Path:
+    """Crop a ``w``x``h`` rectangle at (``x``,``y``) and upscale it to ``out_h`` tall.
+
+    The resync layer uses this to blow up the head region of a full-body clip so
+    the face is large enough for a video lip-sync model to track and correct.
+    Width follows the aspect (``-2`` keeps it even for yuv420p).
+    """
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-i",
+        str(video_in),
+        "-vf",
+        f"crop={w}:{h}:{x}:{y},scale=-2:{out_h}",
+        "-an",
+        *_VIDEO_ENCODE,
+        str(out_path),
+    ]
+    _run(cmd)
+    return out_path
+
+
+def composite_window(
+    base: Path, patch: Path, out_path: Path, *, x: int, y: int, w: int, h: int, feather: int = 40
+) -> Path:
+    """Overlay ``patch`` (the lip-synced head crop) back onto ``base`` at (``x``,``y``).
+
+    ``patch`` is scaled back to ``w``x``h`` and blended through a static feathered
+    alpha mask (opaque interior ramping to transparent over ``feather`` px at the
+    edges) so the resampled window has no hard seam against the untouched frame.
+    Only the mouth differs inside the window, so the blend is invisible.
+    """
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # A static feather mask (same for every frame): white interior, edges ramping
+    # to black over ``feather`` px, via distance-to-nearest-edge.
+    mask = out_path.with_name(f"{out_path.stem}_feather.png")
+    edge = f"min(min(X\\,{w}-X)\\,min(Y\\,{h}-Y))"
+    _run(
+        [
+            "ffmpeg",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            f"color=black:s={w}x{h}",
+            "-vf",
+            f"geq=lum='clip({edge}/{feather}\\,0\\,1)*255',format=gray",
+            "-frames:v",
+            "1",
+            str(mask),
+        ]
+    )
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-i",
+        str(base),
+        "-i",
+        str(patch),
+        "-i",
+        str(mask),
+        "-filter_complex",
+        f"[1:v]scale={w}:{h}[p];[p][2:v]alphamerge[pa];[0:v][pa]overlay={x}:{y}[v]",
+        "-map",
+        "[v]",
+        "-map",
+        "0:a?",
         *_VIDEO_ENCODE,
         str(out_path),
     ]
