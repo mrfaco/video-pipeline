@@ -11,9 +11,9 @@ orchestrator: every heavy step is a cloud API call; the Pi only runs `ffmpeg` an
 **SQLite**. Designs: `docs/superpowers/specs/2026-06-02-brainrot-pipeline-design.md` (original
 single-mode) and `2026-06-04-two-mode-pipeline-design.md` (the dance/closeup split below).
 
-## The two modes (most important concept)
+## The three modes (most important concept)
 
-A preset's `mode:` field picks one of two pipelines (default `dance`), carried on `Job` +
+A preset's `mode:` field picks one of three pipelines (default `dance`), carried on `Job` +
 `JobContext`:
 
 - **`dance`** — a scroll-stopping dance video. The woman AND her environment are generated
@@ -26,6 +26,11 @@ A preset's `mode:` field picks one of two pipelines (default `dance`), carried o
   `motion_first` + the resync layer for full-body) → BiRefNet matte → trio composite over a
   generated background, with small side characters. This is the original pipeline; all pre-existing
   presets are pinned to `mode: closeup`.
+- **`vibe`** — a clean cinematic "digital window" loop (scenery, NO people, NO text). Scene-gen a
+  gorgeous scene → Kling with a **slow travelling/flythrough camera** → clean compose (no captions,
+  no hook, no kinetic) → seamless loop. **Mute** — `prepare_assets` skips the audio fetch entirely
+  (a vibe preset needs no `song:`); the operator adds the sound at post. The cheapest mode (one
+  scene-gen + one Kling). Reuses the dance scene-gen plumbing; skips vocals/captions/lipsync.
 
 ## Architecture in one breath
 
@@ -35,8 +40,9 @@ serialized to a dict over the wire) from link to link. Three stages branch on `c
 ```
 prepare_assets → separate_vocals → align_captions → generate_visuals
   → lipsync_render → compose_video → deliver_telegram
-                     dance: scene-gen+Kling   skip      scene compose (cuts/hook/kinetic/loop)
-                     closeup: bg+portrait   Hedra+matte  trio composite + loop
+   dance:   stem(caption only)  scene-gen+Kling   skip      scene compose (cuts/hook/kinetic/loop)
+   closeup: vocal stem          bg+portrait     Hedra+matte  trio composite + loop
+   vibe:    (mute: prepare skips audio)  scene-gen+Kling(travel)  skip   clean compose + loop, no audio
 ```
 
 Each stage is **thin**: mark progress, call ONE provider/compose/delivery function, record an
@@ -113,6 +119,11 @@ make coverage-ratchet                     # raise the coverage floor (never lowe
   doesn't transcribe). An untranscribable song raises `EmptyTranscriptionError`, which the stage
   catches and skips captions (never fails the render). The **hook overlay + captions are burned
   AFTER the kinetic pass** so they stay stable, not zoomed.
+- **Vibe is mute and song-less.** `prepare_assets` returns early for vibe (no fetch/normalize), and
+  `compose_scene`/`loop_seamless` accept `audio=None` to produce a mute mp4. The `song:` preset key
+  is optional for vibe only. Don't assume `ctx.song_normalized_path` is set — guard on `mode`.
+- **Vibe camera is a travelling flythrough, not a static pan** (`VIBE_MOTION_PROMPT` + a lower
+  `VIBE_KLING_CFG` for more movement). The user wanted "like the viewer is travelling."
 - **Closeup framing dictates the lip-sync tool.** Full-body → `motion_first` (Kling) + the resync
   layer (crop+upscale the small head, lip-sync that, paste back). Close-up singer → `lipsync` +
   Hedra (frontal). Kling on a close-up makes the face look down/away → broken sync.

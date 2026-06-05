@@ -1,7 +1,7 @@
 # brainrot
 
 An automated, config-driven pipeline that turns **a preset song + a theme** into a finished vertical
-(9:16) video, delivered to **Telegram** for manual review and posting. It produces one of two kinds
+(9:16) video, delivered to **Telegram** for manual review and posting. It produces one of three kinds
 of video, chosen per-preset by a `mode:` field:
 
 - **`dance`** — a scroll-stopping dance clip: an attractive woman *and* her environment are generated
@@ -10,6 +10,9 @@ of video, chosen per-preset by a `mode:` field:
   seamless loop.
 - **`closeup`** — an invented, ultra-realistic AI singing head lip-synced to the song, matted and
   composited over a generated background with small side characters, captioned.
+- **`vibe`** — a clean cinematic "digital window" loop: a gorgeous scene (no people, no text) with a
+  slow travelling/flythrough camera and a seamless loop. **Mute** (no song needed — add the sound at
+  post). Built for replay/save/share.
 
 Designed to run on a **Raspberry Pi 5** as a thin always-on orchestrator — every heavy stage is a
 cloud API call; the Pi only fires HTTP requests and runs `ffmpeg`.
@@ -32,15 +35,15 @@ prepare_assets → separate_vocals → align_captions → generate_visuals
   → lipsync_render → compose_video → deliver_telegram
 ```
 
-| # | Stage | Runs on | `dance` | `closeup` |
-|---|-------|---------|---------|-----------|
-| 1 | `prepare_assets`   | Pi (CPU)        | fetch + normalize audio | same |
-| 2 | `separate_vocals`  | Replicate/Demucs| stem (only to caption) | clean vocal stem for lip-sync |
-| 3 | `align_captions`   | Replicate/WhisperX | auto-transcribe stem → captions | full mix + preset lyrics |
-| 4 | `generate_visuals` | fal             | scene-gen (girl-in-scene) → Kling animate (×N for cuts) | FLUX bg loop + portrait(s) |
-| 5 | `lipsync_render`   | Hedra/fal       | **skipped** | Hedra/OmniHuman (or Kling+resync) → matte |
-| 6 | `compose_video`    | Pi/ffmpeg       | beat-cut + captions + hook + kinetic + loop | trio composite + captions + kinetic + loop |
-| 7 | `deliver_telegram` | Pi              | send mp4 + caption | same |
+| # | Stage | `dance` | `closeup` | `vibe` |
+|---|-------|---------|-----------|--------|
+| 1 | `prepare_assets`   | fetch + normalize audio | same | **skipped** (mute, no song) |
+| 2 | `separate_vocals`  | stem (only to caption) | clean vocal stem for lip-sync | skipped |
+| 3 | `align_captions`   | auto-transcribe stem → captions | full mix + preset lyrics | skipped |
+| 4 | `generate_visuals` | scene-gen → Kling animate (×N for cuts) | FLUX bg loop + portrait(s) | scene-gen → Kling travelling cam |
+| 5 | `lipsync_render`   | **skipped** | Hedra/OmniHuman (or Kling+resync) → matte | skipped |
+| 6 | `compose_video`    | beat-cut + captions + hook + kinetic + loop | trio composite + captions + kinetic + loop | clean compose + loop, **mute** |
+| 7 | `deliver_telegram` | send mp4 + caption | same | send mute mp4 |
 
 ### Viral levers (dance mode, all toggleable in settings)
 
@@ -85,6 +88,12 @@ song: { source: "https://vt.tiktok.com/…" }
 theme: "a swirling psychedelic dreamscape, no people"
 character: { image: presets/characters/statue_man_closeup.png }
 backup:    { image: presets/characters/chrome_man.png }
+```
+
+```yaml
+# vibe — cinematic no-people loop; mute, so no song needed
+mode: vibe
+theme: "Hong Kong harbour at twilight, neon skyline reflected in rippling water"
 ```
 
 ---
@@ -141,9 +150,10 @@ The build sequence is intentionally incremental. Each step is a single env chang
 ## Posting workflow (manual)
 
 1. Receive the clip in Telegram.
-2. Upload to TikTok, **set the clip's volume to 0**, add the official **in-app licensed sound**.
+2. Upload to TikTok, add the official **in-app licensed sound** (set the clip's volume to 0;
+   `vibe` clips are already mute).
 3. For `closeup` videos, because the lips were generated against that exact vocal, nudge the two
-   waveforms into alignment (~10 seconds). `dance` videos have no lip-sync, so just line up the start.
+   waveforms into alignment (~10 seconds). `dance`/`vibe` have no lip-sync, so just line up the start.
 4. Set the **AI-generated content** disclosure flag (required for synthetic content).
 
 ---
@@ -193,6 +203,6 @@ structured artifacts.
 ## Cost (real mode, approximate, mid-2026)
 
 Per usable video ≈ **under ~$1**, dominated by the video-gen step — `closeup`: lip-sync + background
-video; `dance`: the Kling scene animate (× `DANCE_SCENE_CUTS` for beat cuts). Apply a ~1.4× reroll
-buffer on generative steps. Vocal sep / captions / FLUX stills are cents. See the design doc for the
-full table.
+video; `dance`: the Kling scene animate (× `DANCE_SCENE_CUTS` for beat cuts); `vibe` is the cheapest
+(one scene-gen + one Kling, no audio/lip-sync). Apply a ~1.4× reroll buffer on generative steps.
+Vocal sep / captions / FLUX stills are cents. See the design doc for the full table.
