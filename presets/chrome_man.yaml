@@ -1,0 +1,17 @@
+# Chrome brainrot creature — a shiny liquid-metal humanoid with googly eyes.
+# Full-body character, so closeup mode here works best with motion_first (Kling
+# animates the body), then the lip-sync layer + matte. Run, e.g.:
+#
+#   PROVIDER_MODE=real MOTION_MODE=motion_first \
+#   ./venv/bin/python manage.py run_job presets/chrome_man.yaml --sync
+#
+# Swap song.source for the TikTok sound you want.
+mode: closeup
+
+song:
+  source: "REPLACE_WITH_TIKTOK_URL"
+
+theme: "a surreal chrome dreamscape, reflective liquid-metal floor, glowing studio lights, dramatic reflections, cinematic, ultra-detailed, no people"
+
+character:
+  image: presets/characters/chrome_man.png

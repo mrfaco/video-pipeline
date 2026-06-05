@@ -1,0 +1,16 @@
+# White-statue man — a sleek, chiseled marble/plastic bust. A frontal face, so
+# closeup mode with Hedra (the talking-head singer) suits him perfectly. Run:
+#
+#   PROVIDER_MODE=real MOTION_MODE=lipsync LIPSYNC_PROVIDER=hedra \
+#   ./venv/bin/python manage.py run_job presets/statue_man.yaml --sync
+#
+# Swap song.source for the TikTok sound you want.
+mode: closeup
+
+song:
+  source: "REPLACE_WITH_TIKTOK_URL"
+
+theme: "a dramatic classical sculpture gallery, marble columns, moody directional spotlight, deep shadows, cinematic, ultra-detailed, no people"
+
+character:
+  image: presets/characters/statue_man.png
