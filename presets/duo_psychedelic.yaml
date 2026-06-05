@@ -1,8 +1,14 @@
-# Singing-head duo: the white statue man leads (frontal face → Hedra lip-sync)
-# with the chrome brainrot creature flanking, over a swirling psychedelic
-# background. Run:
+# Singing-head duo: the white statue man leads (big centre head) with two small
+# chrome brainrot creatures floating as companions, over a swirling psychedelic
+# background. Both are Hedra-lip-synced singing heads.
+#
+# The statue boss uses the PORTRAIT crop (the wide bust overflows the frame as a
+# boss and hides the flanks). The chrome companions are floated small via the
+# TRIO_FLANK_* knobs so both characters read clearly. Run:
 #
 #   PROVIDER_MODE=real MOTION_MODE=lipsync LIPSYNC_PROVIDER=hedra \
+#   TRIO_BOSS_HEIGHT_FRAC=0.55 TRIO_FLANK_HEIGHT_FRAC=0.20 \
+#   TRIO_FLANK_Y_FRAC=0.17 TRIO_FLANK_PEEK_PX=-25 \
 #   ./venv/bin/python manage.py run_job presets/duo_psychedelic.yaml --sync
 mode: closeup
 
@@ -12,7 +18,7 @@ song:
 theme: "a swirling psychedelic dreamscape, vivid kaleidoscopic rainbow colors, fractal patterns, trippy liquid waves, hypnotic neon swirls, melting colors, ultra-detailed, no people"
 
 character:
-  image: presets/characters/statue_man.png   # lead singing head (centre)
+  image: presets/characters/statue_man_closeup.png   # lead singing head (centre)
 
 backup:
-  image: presets/characters/chrome_man.png    # flanking companion (mirrored)
+  image: presets/characters/chrome_man.png            # small floating companions
