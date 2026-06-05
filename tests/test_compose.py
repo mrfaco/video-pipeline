@@ -182,6 +182,21 @@ def test_compose_scene_produces_video(tmp_path):
     assert probe_dimensions(out) == (1080, 1920)
 
 
+def test_compose_scene_with_hook(tmp_path):
+    from compose.captions import build_hook_ass
+
+    hook = build_hook_ass("POV: when the beat drops", tmp_path / "hook.ass")
+    out = compose_scene(
+        scene_clip=FIXTURES_DIR / "character_lipsync.mp4",
+        audio=FIXTURES_DIR / "song.mp3",
+        captions=None,
+        hook_captions=hook,
+        out_path=tmp_path / "hooked.mp4",
+    )
+    assert out.exists()
+    assert probe_dimensions(out) == (1080, 1920)
+
+
 def test_compose_scene_with_captions(tmp_path):
     captions = build_ass(FIXTURES_DIR / "word_timestamps.json", tmp_path / "c.ass")
     out = compose_scene(

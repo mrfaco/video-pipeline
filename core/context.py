@@ -15,7 +15,7 @@ from __future__ import annotations
 from pydantic import BaseModel, ConfigDict
 
 # Bump when the shape of JobContext changes (AGENTS.md §11 schema versioning).
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 
 
 class JobContext(BaseModel):
@@ -40,6 +40,9 @@ class JobContext(BaseModel):
     # Pipeline mode: "dance" (integrated scene-gen + high-motion Kling, no
     # lip-sync) or "closeup" (Hedra singer + matte + side characters).
     mode: str = "dance"
+    # Optional scroll-stop hook/title burned at the top for the whole video
+    # (e.g. "POV: ..."). None = no hook.
+    hook: str | None = None
     # A ready-made greenscreen portrait to use as-is (preset ``character.image``),
     # skipping portrait generation. None means generate from ``character_ref``.
     character_image: str | None = None

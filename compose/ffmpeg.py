@@ -343,6 +343,7 @@ def compose_final(
     flank_height_frac: float = _FLANK_HEIGHT_FRAC,
     flank_y_frac: float = -1.0,
     flank_peek_px: int = _FLANK_PEEK_PX,
+    hook_captions: Path | None = None,
 ) -> Path:
     """Render the final 9:16 mp4 and return ``out_path``.
 
@@ -434,6 +435,12 @@ def compose_final(
         base_zoom=base_zoom,
         shake_px=shake_px,
     )
+    # Hook burned after the kinetic pass so the title stays stable on screen.
+    video_label = "[v]"
+    if hook_captions is not None:
+        hook_esc = _escape_subtitles_path(Path(hook_captions))
+        filter_complex += f";[v]subtitles='{hook_esc}'[vh]"
+        video_label = "[vh]"
 
     # Bound the output explicitly (``-shortest`` is unreliable with an infinite
     # ``-stream_loop`` background — it overshoots). Use the shorter of the audio
@@ -448,7 +455,7 @@ def compose_final(
         "-filter_complex",
         filter_complex,
         "-map",
-        "[v]",
+        video_label,
         "-map",
         f"{audio_idx}:a",
         "-t",
@@ -468,6 +475,7 @@ def compose_scene(
     audio: Path,
     captions: Path | None,
     out_path: Path,
+    hook_captions: Path | None = None,
     width: int = 1080,
     height: int = 1920,
     intro_zoom: float = 1.0,
@@ -516,6 +524,13 @@ def compose_scene(
         base_zoom=base_zoom,
         shake_px=shake_px,
     )
+    # The hook is burned AFTER the kinetic pass so the title stays rock-stable
+    # (never zooms or shakes with the camera).
+    video_label = "[v]"
+    if hook_captions is not None:
+        hook_esc = _escape_subtitles_path(Path(hook_captions))
+        chain += f";[v]subtitles='{hook_esc}'[vh]"
+        video_label = "[vh]"
 
     duration = min(_probe_duration(Path(audio)), _probe_duration(Path(scene_clip)))
     cmd = [
@@ -528,7 +543,7 @@ def compose_scene(
         "-filter_complex",
         chain,
         "-map",
-        "[v]",
+        video_label,
         "-map",
         "1:a",
         "-t",

@@ -17,7 +17,7 @@ from pathlib import Path
 from celery import shared_task
 from django.conf import settings
 
-from compose.captions import build_ass, window_words
+from compose.captions import build_ass, build_hook_ass, window_words
 from compose.ffmpeg import (
     compose_final,
     compose_scene,
@@ -144,6 +144,7 @@ def prepare_assets(job_id: str) -> dict:
         job_id=job_id,
         theme=job.theme,
         mode=job.mode,
+        hook=(job.hook or None),
         character_ref=job.character_ref,
         lyrics=(job.lyrics or None),
         # Closeup needs known lyrics to caption; dance auto-transcribes the song
@@ -368,6 +369,10 @@ def compose_video(payload: dict) -> dict:
     _advance(ctx.job_id, "compose_video")
     out = artifact_path(ctx.job_id, "output.mp4")
     captions = Path(ctx.captions_path) if ctx.captions_path else None
+    hook_captions = None
+    if ctx.hook:
+        hook_captions = build_hook_ass(ctx.hook, artifact_path(ctx.job_id, "hook.ass"))
+        _record(ctx.job_id, "compose_video", "hook", hook_captions)
     backup_clip = Path(ctx.backup_lipsync_path) if ctx.backup_lipsync_path else None
     audio = _require_path(ctx.song_normalized_path)
     # Detect the beat grid so compose can pulse the zoom on every beat. Disabled
@@ -400,6 +405,7 @@ def compose_video(payload: dict) -> dict:
             scene_clip=_require_path(ctx.scene_clip_path),
             audio=audio,
             captions=captions,
+            hook_captions=hook_captions,
             out_path=compose_target,
             intro_zoom=dance_intro,
             intro_seconds=settings.INTRO_PUNCH_SECONDS,
@@ -431,6 +437,7 @@ def compose_video(payload: dict) -> dict:
             flank_height_frac=settings.TRIO_FLANK_HEIGHT_FRAC,
             flank_y_frac=settings.TRIO_FLANK_Y_FRAC,
             flank_peek_px=settings.TRIO_FLANK_PEEK_PX,
+            hook_captions=hook_captions,
         )
     if crossfade_loop:
         loop_seamless(compose_target, out, settings.LOOP_CROSSFADE_SECONDS)

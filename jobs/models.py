@@ -33,6 +33,8 @@ class Job(models.Model):
     # Pipeline mode: "dance" (scene-gen + high-motion, no lip-sync) or "closeup"
     # (Hedra singer + matte + side characters).
     mode = models.CharField(max_length=16, default="dance")
+    # Optional scroll-stop hook/title burned at the top of the video.
+    hook = models.CharField(max_length=200, blank=True)
     theme = models.TextField()
     lyrics = models.TextField(blank=True)
     character_ref = models.CharField(max_length=500)

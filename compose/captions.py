@@ -78,6 +78,52 @@ def window_words(src_path: Path, out_path: Path, start_s: float, end_s: float) -
     return out_path
 
 
+def build_hook_ass(
+    text: str,
+    out_path: Path,
+    *,
+    width: int = 1080,
+    height: int = 1920,
+) -> Path:
+    """Write a persistent top-anchored hook/title ``.ass`` (the scroll-stop text).
+
+    One big, bold, outlined line pinned near the top for the whole video — the
+    "POV: …" / question / CTA that hooks the viewer. ``compose`` burns it after
+    the kinetic pass so it never zooms or shakes with the camera.
+    """
+    # Alignment 8 = top-center; MarginV is the gap from the top edge (clear of
+    # TikTok's own top chrome). Generous L/R margins let long hooks wrap.
+    hook_size = 84
+    margin_top = 200
+    header = (
+        "[Script Info]\n"
+        "ScriptType: v4.00+\n"
+        "WrapStyle: 0\n"
+        "ScaledBorderAndShadow: yes\n"
+        f"PlayResX: {width}\n"
+        f"PlayResY: {height}\n"
+        "\n"
+        "[V4+ Styles]\n"
+        "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, "
+        "OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, "
+        "ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, "
+        "Alignment, MarginL, MarginR, MarginV, Encoding\n"
+        f"Style: Hook,{_FONT_NAME},{hook_size},&H00FFFFFF,&H000000FF,"
+        f"&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,5,3,"
+        f"8,60,60,{margin_top},1\n"
+        "\n"
+        "[Events]\n"
+        "Format: Layer, Start, End, Style, Name, MarginL, MarginR, "
+        "MarginV, Effect, Text\n"
+        # 9:59:59.99 ⇒ persists for any realistic clip length.
+        f"Dialogue: 0,0:00:00.00,9:59:59.99,Hook,,0,0,0,,{_escape_text(text.strip())}\n"
+    )
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(header, encoding="utf-8")
+    return out_path
+
+
 def build_ass(
     word_timestamps_path: Path,
     out_path: Path,
