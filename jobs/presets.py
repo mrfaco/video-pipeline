@@ -77,8 +77,10 @@ def load_preset(path: str | Path) -> dict:
     theme = _require(data, "theme", str(preset_path))
 
     mode = str(data.get("mode", "dance")).strip().lower()
-    if mode not in {"dance", "closeup"}:
-        raise PresetError(f"{preset_path}: mode must be 'dance' or 'closeup', got {mode!r}.")
+    if mode not in {"dance", "closeup", "vibe"}:
+        raise PresetError(
+            f"{preset_path}: mode must be 'dance', 'closeup', or 'vibe', got {mode!r}."
+        )
 
     # Dance mode generates the girl inside the scene, so a character block is
     # optional. Closeup mode lip-syncs a specific portrait, so it's required.

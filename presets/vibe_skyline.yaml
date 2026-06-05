@@ -1,0 +1,9 @@
+# Vibe mode: a clean cinematic "digital window" — a gorgeous scene with a slow
+# camera move and a seamless loop. No people, no text, no captions. Built for
+# replay/save/share (the 6-second loop trap).
+mode: vibe
+
+song:
+  source: "REPLACE_WITH_TIKTOK_URL"
+
+theme: "the Hong Kong Island waterfront at twilight, the IFC and neon skyscrapers reflected in the rippling harbour water, deep violet-to-orange sunset sky"

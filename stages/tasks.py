@@ -168,9 +168,10 @@ def prepare_assets(job_id: str) -> dict:
 def separate_vocals(payload: dict) -> dict:
     ctx = JobContext.from_dict(payload)
     _advance(ctx.job_id, "separate_vocals")
-    if ctx.mode == "dance" and not ctx.enable_captions:
-        # Dance has no lip-sync; it only needs the stem to caption (clean vocals
-        # transcribe far better than a full mix). No captions => skip Demucs.
+    if ctx.mode != "closeup" and not (ctx.mode == "dance" and ctx.enable_captions):
+        # Only closeup needs the stem for lip-sync; dance needs it solely to
+        # caption (clean vocals transcribe far better than a full mix); vibe
+        # never captions. So skip Demucs unless it'll actually be used.
         return ctx.to_dict()
     out = artifact_path(ctx.job_id, "vocal_stem.wav")
     get_vocal_separator().separate(_require_path(ctx.song_normalized_path), out)
@@ -223,16 +224,27 @@ def generate_visuals(payload: dict) -> dict:
     ctx = JobContext.from_dict(payload)
     _advance(ctx.job_id, "generate_visuals")
 
-    if ctx.mode == "dance":
-        # One or more integrated scene stills (girl + environment), each animated
-        # with the high-motion model. N>1 → beat-cut between them in compose.
-        # No greenscreen, no portrait, no separate bg.
-        base_prompt = settings.SCENE_PROMPT_TEMPLATE.format(theme=ctx.theme)
-        n = max(1, settings.DANCE_SCENE_CUTS)
-        shots = settings.DANCE_SHOT_VARIATIONS or [""]
-        # "endframe" loop only makes sense for a single continuous scene.
+    if ctx.mode in ("dance", "vibe"):
+        # Integrated scene still(s) → animate with Kling. No greenscreen, no
+        # portrait, no separate bg. dance = a woman dancing (N scenes for cuts);
+        # vibe = a clean cinematic scene, no people, one slow continuous shot.
+        if ctx.mode == "vibe":
+            base_prompt = settings.VIBE_SCENE_PROMPT_TEMPLATE.format(theme=ctx.theme)
+            motion_prompt = settings.VIBE_MOTION_PROMPT
+            cfg = settings.VIBE_KLING_CFG
+            n = 1
+            shots = [""]
+        else:
+            base_prompt = settings.SCENE_PROMPT_TEMPLATE.format(theme=ctx.theme)
+            motion_prompt = settings.DANCE_MOTION_PROMPT
+            cfg = settings.DANCE_KLING_CFG
+            n = max(1, settings.DANCE_SCENE_CUTS)
+            shots = settings.DANCE_SHOT_VARIATIONS or [""]
+        # "endframe" loop only makes sense for a single continuous dance scene; a
+        # vibe pan loops via crossfade so the camera keeps one direction.
         endframe = (
-            n == 1
+            ctx.mode == "dance"
+            and n == 1
             and settings.LOOP_SEAMLESS_ENABLED
             and settings.DANCE_LOOP_MODE == "endframe"
         )
@@ -246,8 +258,8 @@ def generate_visuals(payload: dict) -> dict:
                 still,
                 clip,
                 tail_image_path=(still if endframe else None),
-                prompt=settings.DANCE_MOTION_PROMPT,
-                cfg_scale=settings.DANCE_KLING_CFG,
+                prompt=motion_prompt,
+                cfg_scale=cfg,
             )
             clips.append(str(clip))
             _record(ctx.job_id, "generate_visuals", "scene", clip)
@@ -346,8 +358,8 @@ def _resync_head(moving: Path, audio: Path, raw: Path, job_id: str, name: str) -
 def lipsync_render(payload: dict) -> dict:
     ctx = JobContext.from_dict(payload)
     _advance(ctx.job_id, "lipsync_render")
-    if ctx.mode == "dance":
-        # Dance mode leaves lip-sync alone — the scene clip is the final motion.
+    if ctx.mode != "closeup":
+        # Dance and vibe have no lip-sync — the scene clip is the final motion.
         return ctx.to_dict()
     # Talking-head models sync best on the isolated vocal stem; body-animating
     # models (OmniHuman) need the full mix to dance to the beat.
@@ -403,7 +415,17 @@ def compose_video(payload: dict) -> dict:
     else:
         crossfade_loop = settings.LOOP_SEAMLESS_ENABLED
     compose_target = artifact_path(ctx.job_id, "prewrap.mp4") if crossfade_loop else out
-    if ctx.mode == "dance":
+    if ctx.mode == "vibe":
+        # Pure clean cinematic loop: the scene clip + audio only — no captions,
+        # no hook, no kinetic camera (the slow camera move IS the motion).
+        compose_scene(
+            scene_clip=_require_path(ctx.scene_clip_path),
+            audio=audio,
+            captions=None,
+            hook_captions=None,
+            out_path=compose_target,
+        )
+    elif ctx.mode == "dance":
         # The intro zoom-punch fights a seamless loop (frame 0 would be zoomed in
         # vs the last frame, and the punch re-triggers each loop). Drop it when
         # looping so the Kling end-frame loop stays seam-free; the beat pulse

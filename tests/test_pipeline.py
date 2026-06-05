@@ -282,6 +282,29 @@ def test_pipeline_dance_beat_cuts(tmp_path):
 
 
 @pytest.mark.django_db
+def test_pipeline_vibe_mode(tmp_path):
+    # Vibe: cinematic scene-gen -> gentle Kling -> clean compose. No vocals, no
+    # captions, no portrait, no lipsync — just the looping scene + audio.
+    p = tmp_path / "vibe.yaml"
+    p.write_text(
+        "song:\n  audio: fixtures/song.mp3\ntheme: a city skyline at dusk\nmode: vibe\n",
+        encoding="utf-8",
+    )
+    with override_settings(
+        MEDIA_ROOT=tmp_path, PROVIDER_MODE="fake", TELEGRAM_BOT_TOKEN="", TELEGRAM_CHAT_ID=""
+    ):
+        job = create_job_from_preset(str(p))
+        assert job.mode == "vibe"
+        run_job(job, eager=True)
+        job.refresh_from_db()
+        assert job.status == Job.Status.DELIVERED, job.error_detail
+        assert _ffprobe_has_video(Path(job.output_path))
+        kinds = set(Artifact.objects.filter(job=job).values_list("kind", flat=True))
+        assert "scene" in kinds
+        assert {"vocal_stem", "captions", "portrait", "lipsync", "hook"} & kinds == set()
+
+
+@pytest.mark.django_db
 def test_pipeline_dance_with_hook(tmp_path):
     p = tmp_path / "dance.yaml"
     p.write_text(
