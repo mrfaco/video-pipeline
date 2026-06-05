@@ -1,0 +1,7 @@
+# Style-library preset: the "coquette" look. Swap song.audio for a TikTok source for
+# real posts. Energetic dance + the built-in charm pivot are automatic.
+mode: dance
+song:
+  audio: fixtures/song.mp3
+style: "coquette / soft-girl aesthetic — soft romantic curls with a hair bow, rosy soft makeup, a fitted pastel top with delicate lace trim and ribbon details, dainty and feminine"
+theme: "a dreamy pastel pink room with sheer curtains, flowers and warm fairy lights"

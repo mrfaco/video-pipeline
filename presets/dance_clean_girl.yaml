@@ -1,0 +1,7 @@
+# Style-library preset: the "clean_girl" look. Swap song.audio for a TikTok source for
+# real posts. Energetic dance + the built-in charm pivot are automatic.
+mode: dance
+song:
+  audio: fixtures/song.mp3
+style: "clean-girl / quiet-luxury aesthetic — sleek slicked-back low bun, minimal gold jewelry, dewy natural makeup, a fitted neutral beige knit top with tailored high-waisted trousers, effortless and expensive-looking"
+theme: "a bright sunlit modern luxury apartment, floor-to-ceiling windows, warm neutral tones"

@@ -1,0 +1,7 @@
+# Style-library preset: the "cyber_y2k" look. Swap song.audio for a TikTok source for
+# real posts. Energetic dance + the built-in charm pivot are automatic.
+mode: dance
+song:
+  audio: fixtures/song.mp3
+style: "Y2K cyber-rave aesthetic — sleek hair with butterfly clips, metallic holographic makeup, a fitted metallic silver top with a futuristic mini skirt and chunky platform boots, shiny and futuristic"
+theme: "a neon cyberpunk club, glowing lasers and holographic lights, dark with vivid colours"

@@ -1,0 +1,7 @@
+# Style-library preset: the "old_money" look. Swap song.audio for a TikTok source for
+# real posts. Energetic dance + the built-in charm pivot are automatic.
+mode: dance
+song:
+  audio: fixtures/song.mp3
+style: "old-money / country-club aesthetic — neat blowout, pearl earrings, a crisp fitted white tennis dress with a pleated skirt, preppy and elegant"
+theme: "a sunny country-club tennis court, manicured hedges, bright clear daylight"

@@ -1,0 +1,7 @@
+# Style-library preset: the "egirl" look. Swap song.audio for a TikTok source for
+# real posts. Energetic dance + the built-in charm pivot are automatic.
+mode: dance
+song:
+  audio: fixtures/song.mp3
+style: "e-girl / alt aesthetic — dyed coloured streaks in the hair, bold winged eyeliner and blush, layered chain necklaces, a fitted graphic crop tee with a plaid mini skirt and fishnet sleeves, edgy and playful"
+theme: "a dim bedroom lit by purple and pink LED strip lights, posters on the wall"
