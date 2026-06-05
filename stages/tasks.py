@@ -111,6 +111,14 @@ def prepare_assets(job_id: str) -> dict:
     _advance(job_id, "prepare_assets")
     job = Job.objects.get(pk=job_id)
 
+    # Vibe videos are MUTE (they sync with nothing — the operator adds the sound
+    # at post time), so skip the audio fetch/normalize entirely.
+    if job.mode == "vibe":
+        return JobContext(
+            job_id=job_id, theme=job.theme, mode=job.mode, hook=(job.hook or None),
+            character_ref=job.character_ref, enable_captions=False, song_path=""
+        ).to_dict()
+
     # If the preset gave a url/query instead of a local file, fetch it now.
     if not job.song_filename:
         if not job.song_source:
@@ -395,10 +403,11 @@ def compose_video(payload: dict) -> dict:
         hook_captions = build_hook_ass(ctx.hook, artifact_path(ctx.job_id, "hook.ass"))
         _record(ctx.job_id, "compose_video", "hook", hook_captions)
     backup_clip = Path(ctx.backup_lipsync_path) if ctx.backup_lipsync_path else None
-    audio = _require_path(ctx.song_normalized_path)
+    # Vibe is mute (no song), so there's no audio to mux or beat-detect.
+    audio = None if ctx.mode == "vibe" else _require_path(ctx.song_normalized_path)
     # Detect the beat grid so compose can pulse the zoom on every beat. Disabled
     # (or any failure) leaves beat_period at 0, which compose treats as off.
-    if settings.KINETIC_ENABLED:
+    if settings.KINETIC_ENABLED and audio is not None:
         beat_period, beat_offset = detect_beat_period(Path(audio))
         beat_zoom = settings.BEAT_ZOOM
         shake_px = settings.KINETIC_SHAKE_PX
@@ -426,6 +435,7 @@ def compose_video(payload: dict) -> dict:
             out_path=compose_target,
         )
     elif ctx.mode == "dance":
+        assert audio is not None  # only vibe is mute
         # The intro zoom-punch fights a seamless loop (frame 0 would be zoomed in
         # vs the last frame, and the punch re-triggers each loop). Drop it when
         # looping so the Kling end-frame loop stays seam-free; the beat pulse
@@ -460,6 +470,7 @@ def compose_video(payload: dict) -> dict:
             shake_px=shake_px,
         )
     else:
+        assert audio is not None  # only vibe is mute
         compose_final(
             background_loop=_require_path(ctx.background_loop_path),
             character_clip=_require_path(ctx.lipsync_path),

@@ -298,10 +298,21 @@ def test_pipeline_vibe_mode(tmp_path):
         run_job(job, eager=True)
         job.refresh_from_db()
         assert job.status == Job.Status.DELIVERED, job.error_detail
-        assert _ffprobe_has_video(Path(job.output_path))
+        output = Path(job.output_path)
+        assert _ffprobe_has_video(output)
+        # Vibe is mute — no audio stream, and no audio artifacts at all.
+        streams = json.loads(
+            subprocess.run(
+                ["ffprobe", "-v", "error", "-show_streams", "-of", "json", str(output)],
+                check=True, capture_output=True,
+            ).stdout
+        )["streams"]
+        assert not any(s.get("codec_type") == "audio" for s in streams)
         kinds = set(Artifact.objects.filter(job=job).values_list("kind", flat=True))
         assert "scene" in kinds
-        assert {"vocal_stem", "captions", "portrait", "lipsync", "hook"} & kinds == set()
+        assert {
+            "vocal_stem", "captions", "portrait", "lipsync", "hook", "normalized_full"
+        } & kinds == set()
 
 
 @pytest.mark.django_db

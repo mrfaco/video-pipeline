@@ -66,6 +66,16 @@ def probe_duration(path: Path) -> float:
     return _probe_duration(Path(path))
 
 
+def _has_audio(path: Path) -> bool:
+    """True if the file has at least one audio stream (mute vibe clips don't)."""
+    out = subprocess.run(
+        ["ffprobe", "-v", "error", "-select_streams", "a", "-show_entries",
+         "stream=index", "-of", "csv=p=0", str(path)],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    return bool(out)
+
+
 def probe_dimensions(path: Path) -> tuple[int, int]:
     """Return the (width, height) of a video's first video stream via ffprobe."""
     out = subprocess.run(
@@ -279,24 +289,16 @@ def loop_seamless(src: Path, out_path: Path, duration: float = 0.4) -> Path:
         f"[0:v]split[v0][v1];"
         f"[v0]trim=start={d},setpts=PTS-STARTPTS,fps=30[vmain];"
         f"[v1]trim=duration={d},setpts=PTS-STARTPTS,fps=30[vhead];"
-        f"[vmain][vhead]xfade=transition=fade:duration={d}:offset={offset:.3f}[vout];"
-        f"[0:a]atrim=start={d},asetpts=PTS-STARTPTS[aout]"
+        f"[vmain][vhead]xfade=transition=fade:duration={d}:offset={offset:.3f}[vout]"
     )
+    audio_maps = []
+    if _has_audio(src):  # mute vibe clips have no audio stream to reorder
+        filtergraph += f";[0:a]atrim=start={d},asetpts=PTS-STARTPTS[aout]"
+        audio_maps = ["-map", "[aout]", "-c:a", "aac"]
     cmd = [
-        "ffmpeg",
-        "-y",
-        "-i",
-        str(src),
-        "-filter_complex",
-        filtergraph,
-        "-map",
-        "[vout]",
-        "-map",
-        "[aout]",
-        *_VIDEO_ENCODE,
-        "-c:a",
-        "aac",
-        str(out_path),
+        "ffmpeg", "-y", "-i", str(src),
+        "-filter_complex", filtergraph,
+        "-map", "[vout]", *audio_maps, *_VIDEO_ENCODE, str(out_path),
     ]
     _run(cmd)
     return out_path
@@ -532,7 +534,7 @@ def compose_final(
 def compose_scene(
     *,
     scene_clip: Path,
-    audio: Path,
+    audio: Path | None,
     captions: Path | None,
     out_path: Path,
     hook_captions: Path | None = None,
@@ -592,26 +594,21 @@ def compose_scene(
         chain += f";[v]subtitles='{hook_esc}'[vh]"
         video_label = "[vh]"
 
-    duration = min(_probe_duration(Path(audio)), _probe_duration(Path(scene_clip)))
-    cmd = [
-        "ffmpeg",
-        "-y",
-        "-i",
-        str(scene_clip),
-        "-i",
-        str(audio),
-        "-filter_complex",
-        chain,
-        "-map",
-        video_label,
-        "-map",
-        "1:a",
-        "-t",
-        f"{duration:.3f}",
-        *_VIDEO_ENCODE,
-        "-c:a",
-        "aac",
-        str(out_path),
-    ]
+    # ``audio`` None ⇒ a mute video (vibe mode syncs with nothing; the sound is
+    # added at post time), bounded to the scene clip's own length.
+    if audio is None:
+        duration = _probe_duration(Path(scene_clip))
+        cmd = [
+            "ffmpeg", "-y", "-i", str(scene_clip),
+            "-filter_complex", chain, "-map", video_label, "-an",
+            "-t", f"{duration:.3f}", *_VIDEO_ENCODE, str(out_path),
+        ]
+    else:
+        duration = min(_probe_duration(Path(audio)), _probe_duration(Path(scene_clip)))
+        cmd = [
+            "ffmpeg", "-y", "-i", str(scene_clip), "-i", str(audio),
+            "-filter_complex", chain, "-map", video_label, "-map", "1:a",
+            "-t", f"{duration:.3f}", *_VIDEO_ENCODE, "-c:a", "aac", str(out_path),
+        ]
     _run(cmd)
     return out_path

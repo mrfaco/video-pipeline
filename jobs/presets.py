@@ -71,9 +71,6 @@ def load_preset(path: str | Path) -> dict:
     if not isinstance(data, dict):
         raise PresetError(f"Preset {preset_path} did not parse to a mapping.")
 
-    song = _require(data, "song", str(preset_path))
-    if not isinstance(song, dict):
-        raise PresetError("Preset 'song' must be a mapping with an 'audio' or 'source' key.")
     theme = _require(data, "theme", str(preset_path))
 
     mode = str(data.get("mode", "dance")).strip().lower()
@@ -89,20 +86,28 @@ def load_preset(path: str | Path) -> dict:
     else:
         character = data.get("character")
 
-    # Exactly one of a local file (``audio``) or a fetchable URL/query
-    # (``source``). ``source`` is downloaded later, in prepare_assets.
-    audio = song.get("audio")
-    source = song.get("source")
-    if bool(audio) == bool(source):
-        raise PresetError(
-            "Preset 'song' needs exactly one of 'audio' (path) or 'source' (url/query)."
-        )
-
+    # Vibe videos sync with nothing → they're MUTE: no song needed, no download.
+    # (You add the TikTok sound at post time.) dance/closeup need a guide track.
     audio_path: Path | None = None
-    if audio:
-        audio_path = (settings.BASE_DIR / str(audio)).resolve()
-        if not audio_path.is_file():
-            raise PresetError(f"Song audio not found: {audio_path}")
+    source = None
+    song = data.get("song")
+    if mode != "vibe":
+        if not isinstance(song, dict):
+            raise PresetError("Preset 'song' must be a mapping with an 'audio' or 'source' key.")
+        # Exactly one of a local file (``audio``) or a fetchable URL/query
+        # (``source``). ``source`` is downloaded later, in prepare_assets.
+        audio = song.get("audio")
+        source = song.get("source")
+        if bool(audio) == bool(source):
+            raise PresetError(
+                "Preset 'song' needs exactly one of 'audio' (path) or 'source' (url/query)."
+            )
+        if audio:
+            audio_path = (settings.BASE_DIR / str(audio)).resolve()
+            if not audio_path.is_file():
+                raise PresetError(f"Song audio not found: {audio_path}")
+    else:
+        song = song if isinstance(song, dict) else {}
 
     if character:
         character_ref, character_image = _parse_character(character, "character")
