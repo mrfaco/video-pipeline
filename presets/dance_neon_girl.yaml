@@ -1,0 +1,14 @@
+# THE neon girl, locked. Her face (presets/characters/neon_girl.png) is held
+# across every scene via identity-preserving generation (PuLID) — same girl,
+# new videos. Swap song.source / theme; she stays consistent.
+mode: dance
+
+song:
+  source: "REPLACE_WITH_TIKTOK_URL"
+
+character:
+  image: presets/characters/neon_girl.png
+
+style: "Y2K cyber-rave aesthetic — sleek hair, metallic holographic makeup, a fitted metallic holographic outfit, shiny and futuristic"
+
+theme: "a neon cyberpunk club, glowing lasers and holographic lights, dark with vivid colours"

@@ -258,11 +258,18 @@ def generate_visuals(payload: dict) -> dict:
             and settings.LOOP_SEAMLESS_ENABLED
             and settings.DANCE_LOOP_MODE == "endframe"
         )
+        # Persistent character: a dance preset's character.image locks that face
+        # into every scene (same girl, new scenes) via identity-preserving gen.
+        reference = (
+            Path(ctx.character_image)
+            if (ctx.mode == "dance" and ctx.character_image)
+            else None
+        )
         clips: list[str] = []
         for i in range(n):
             prompt = f"{base_prompt}, {shots[i % len(shots)]}" if n > 1 else base_prompt
             still = artifact_path(ctx.job_id, f"scene_still_{i}.png")
-            get_scene_generator().generate(prompt, still)
+            get_scene_generator().generate(prompt, still, reference_image=reference)
             clip = artifact_path(ctx.job_id, f"scene_motion_{i}.mp4")
             get_animator().animate(
                 still,

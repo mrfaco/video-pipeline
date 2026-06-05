@@ -180,6 +180,12 @@ FAL_FLUX_MODEL = env("FAL_FLUX_MODEL", default="fal-ai/flux/dev")
 # omits ``mode:``. The prompt template gets ``{theme}`` substituted in.
 DEFAULT_MODE = env("DEFAULT_MODE", default="dance")
 SCENE_IMAGE_MODEL = env("SCENE_IMAGE_MODEL", default="fal-ai/flux-pro/v1.1-ultra")
+# Persistent character: when a dance preset gives `character.image`, the scene
+# still is generated with that face locked in (same girl, new scenes) via a
+# PuLID identity model instead of the text-only scene model. CHARACTER_ID_WEIGHT
+# is PuLID's identity strength (higher = stricter to the reference face).
+CHARACTER_SCENE_MODEL = env("CHARACTER_SCENE_MODEL", default="fal-ai/flux-pulid")
+CHARACTER_ID_WEIGHT = env.float("CHARACTER_ID_WEIGHT", default=1.0)
 # The scene prompt is {theme} (the setting) + {style} (the woman's look, swappable
 # per-preset via `style:`) + an always-on safety clause. NOTE: the wardrobe stays
 # this side of explicit on purpose — revealing outfits (bikini/lingerie) get the

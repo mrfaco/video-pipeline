@@ -68,8 +68,14 @@ class PortraitGenerator(Protocol):
 
 @runtime_checkable
 class SceneGenerator(Protocol):
-    def generate(self, prompt: str, out_path: Path) -> Path:
-        """One integrated scene still (character + environment) for dance mode."""
+    def generate(
+        self, prompt: str, out_path: Path, reference_image: Path | None = None
+    ) -> Path:
+        """One integrated scene still (character + environment) for dance mode.
+
+        ``reference_image`` locks a persistent character's face into the scene
+        (identity-preserving generation); None = a fresh same-vibe woman.
+        """
         ...
 
 

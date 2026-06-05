@@ -96,22 +96,39 @@ class RealFalSceneGenerator:
             raise ProviderConfigError("FAL_KEY is empty; required for RealFalSceneGenerator.")
         self._model = settings.SCENE_IMAGE_MODEL
 
-    def generate(self, prompt: str, out_path: Path) -> Path:
+    def generate(
+        self, prompt: str, out_path: Path, reference_image: Path | None = None
+    ) -> Path:
         import fal_client  # noqa: PLC0415  (heavy optional SDK, real-mode only)
 
+        # With a reference face, lock the SAME person into the new scene via a
+        # PuLID identity model (persistent character). Otherwise the text-only
+        # scene model invents a fresh "same-vibe" woman.
         # The safety checker returns an all-black image when it flags a prompt
-        # (an "attractive woman dancing" trips it), so disable it for these
-        # non-explicit creative scenes; without this the dance is built on a
-        # black frame and the motion model hallucinates garbage.
-        result = fal_client.subscribe(
-            self._model,
-            arguments={
-                "prompt": prompt,
-                "aspect_ratio": "9:16",
-                "enable_safety_checker": False,
-                "safety_tolerance": "6",
-            },
-        )
+        # ("attractive woman dancing" trips it), so it's disabled for these
+        # non-explicit creative scenes — else the motion model gets a black frame.
+        if reference_image is not None:
+            ref_url = fal_client.upload_file(Path(reference_image))
+            result = fal_client.subscribe(
+                settings.CHARACTER_SCENE_MODEL,
+                arguments={
+                    "prompt": prompt,
+                    "reference_image_url": ref_url,
+                    "image_size": "portrait_16_9",
+                    "id_weight": settings.CHARACTER_ID_WEIGHT,
+                    "enable_safety_checker": False,
+                },
+            )
+        else:
+            result = fal_client.subscribe(
+                self._model,
+                arguments={
+                    "prompt": prompt,
+                    "aspect_ratio": "9:16",
+                    "enable_safety_checker": False,
+                    "safety_tolerance": "6",
+                },
+            )
         return _download(_result_url(result, "images"), out_path)
 
 
