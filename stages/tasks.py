@@ -233,7 +233,14 @@ def generate_visuals(payload: dict) -> dict:
         # loop (or not), so the motion never settles into a stationary tail.
         endframe = settings.LOOP_SEAMLESS_ENABLED and settings.DANCE_LOOP_MODE == "endframe"
         tail = still if endframe else None
-        get_animator().animate(still, clip, tail_image_path=tail)
+        # Dance uses its own aggressive motion prompt + lower cfg for big energy.
+        get_animator().animate(
+            still,
+            clip,
+            tail_image_path=tail,
+            prompt=settings.DANCE_MOTION_PROMPT,
+            cfg_scale=settings.DANCE_KLING_CFG,
+        )
         ctx.scene_clip_path = str(clip)
         _record(ctx.job_id, "generate_visuals", "scene", clip)
         return ctx.to_dict()

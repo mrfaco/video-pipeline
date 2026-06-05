@@ -90,12 +90,19 @@ class Matter(Protocol):
 @runtime_checkable
 class Animator(Protocol):
     def animate(
-        self, image_path: Path, out_path: Path, tail_image_path: Path | None = None
+        self,
+        image_path: Path,
+        out_path: Path,
+        tail_image_path: Path | None = None,
+        prompt: str | None = None,
+        cfg_scale: float | None = None,
     ) -> Path:
         """High-motion image->video (Kling): the character dances, no lip-sync.
 
         ``tail_image_path`` sets the clip's END frame. Passing the same image as
         start and tail makes the motion return home for a seamless loop.
+        ``prompt``/``cfg_scale`` override the defaults (dance mode passes a far
+        more aggressive motion prompt + lower cfg for bigger movement).
         """
         ...
 

@@ -186,11 +186,11 @@ SCENE_IMAGE_MODEL = env("SCENE_IMAGE_MODEL", default="fal-ai/flux-pro/v1.1-ultra
 SCENE_PROMPT_TEMPLATE = env(
     "SCENE_PROMPT_TEMPLATE",
     default=(
-        "a stylish attractive young woman dancing energetically in {theme}, "
-        "wearing a fashionable trendy outfit that fully covers her — modern "
-        "streetwear, a chic jacket with long pants or a flowing midi dress, "
-        "modest and tasteful, fully clothed, no bikini, no crop top, no exposed "
-        "midriff, no revealing or skimpy clothing, "
+        "a stunning attractive young woman dancing energetically in {theme}, "
+        "wearing a stylish form-fitting outfit that flatters her figure — fitted "
+        "activewear, a trendy crop top with high-waisted leggings, or a fitted "
+        "mini dress, alluring and subtly sexy yet tasteful, showing her figure "
+        "but never explicit — no nudity, no lingerie, no swimwear, no bikini, "
         "full body in frame, dynamic confident pose, cinematic lighting, "
         "photorealistic, highly detailed, vertical 9:16 composition, scroll-stopping"
     ),
@@ -253,6 +253,19 @@ MOTION_MODE = env("MOTION_MODE", default="lipsync")
 KLING_MODEL = env("KLING_MODEL", default="fal-ai/kling-video/v2.5-turbo/pro/image-to-video")
 KLING_DURATION = env("KLING_DURATION", default="10")  # "5" or "10" seconds
 KLING_CFG = env.float("KLING_CFG", default=0.8)
+# Dance mode drives Kling with its OWN, far more aggressive motion prompt (no
+# lip-sync, so no "stay still / relaxed mouth" constraints) and a lower cfg to
+# give the model freedom for big, explosive movement.
+DANCE_KLING_CFG = env.float("DANCE_KLING_CFG", default=0.5)
+DANCE_MOTION_PROMPT = env(
+    "DANCE_MOTION_PROMPT",
+    default=(
+        "explosive, extremely high-energy dancing — fast, powerful full-body movement, "
+        "rapid hip sways, quick spins and turns, jumping, bouncing and grooving hard to a "
+        "fast upbeat rhythm, dynamic athletic choreography, hair whipping, arms thrown wide, "
+        "lots of motion, wild and electric energy, never static, the whole body keeps moving"
+    ),
+)
 KLING_MOTION_PROMPT = env(
     "KLING_MOTION_PROMPT",
     default=(

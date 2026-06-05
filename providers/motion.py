@@ -40,16 +40,21 @@ class RealKlingAnimator:
         self._cfg = settings.KLING_CFG
 
     def animate(
-        self, image_path: Path, out_path: Path, tail_image_path: Path | None = None
+        self,
+        image_path: Path,
+        out_path: Path,
+        tail_image_path: Path | None = None,
+        prompt: str | None = None,
+        cfg_scale: float | None = None,
     ) -> Path:
         import fal_client  # noqa: PLC0415  (heavy optional SDK, real-mode only)
 
         url = fal_client.upload_file(Path(image_path))
         arguments: dict[str, object] = {
-            "prompt": self._prompt,
+            "prompt": prompt if prompt is not None else self._prompt,
             "image_url": url,
             "duration": self._duration,
-            "cfg_scale": self._cfg,
+            "cfg_scale": cfg_scale if cfg_scale is not None else self._cfg,
         }
         if tail_image_path is not None:
             # End the clip on this frame; start == tail gives a seamless loop.
