@@ -275,7 +275,7 @@ DANCE_SHOT_VARIATIONS = env.list(
 # Vibe mode: a clean cinematic "digital window" — a gorgeous scene (NO people,
 # NO text) with a slow stabilized camera move, seamless loop, no captions/hook.
 # Higher cfg keeps the motion gentle (closer to the still) than dance.
-VIBE_KLING_CFG = env.float("VIBE_KLING_CFG", default=0.65)
+VIBE_KLING_CFG = env.float("VIBE_KLING_CFG", default=0.45)
 VIBE_SCENE_PROMPT_TEMPLATE = env(
     "VIBE_SCENE_PROMPT_TEMPLATE",
     default=(
@@ -287,9 +287,11 @@ VIBE_SCENE_PROMPT_TEMPLATE = env(
 VIBE_MOTION_PROMPT = env(
     "VIBE_MOTION_PROMPT",
     default=(
-        "a slow, smooth, stabilized cinematic camera pan across the scene, gentle "
-        "parallax, softly rippling water and slowly drifting clouds, subtle ambient "
-        "motion, calm and hypnotic, no people, no text, no fast movement"
+        "a smooth cinematic flythrough — the camera glides steadily FORWARD through "
+        "the scene as if the viewer is travelling through it, immersive dolly-forward "
+        "motion with strong depth and parallax, drifting past and toward the elements, "
+        "first-person travelling shot, clear sense of forward movement, smooth and "
+        "cinematic (not shaky), no people, no text"
     ),
 )
 DANCE_MOTION_PROMPT = env(
