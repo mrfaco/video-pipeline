@@ -5,19 +5,38 @@ Guidance for AI agents working in this repo. Read **`AGENTS.md`** first — it h
 
 ## What this is
 
-A config-driven pipeline that turns **(preset song + theme + locked synthetic character)** into a
-finished 9:16 lip-synced, captioned video delivered to Telegram. Runs on a Raspberry Pi 5 as a thin
+A config-driven pipeline that turns **(preset song + theme [+ character])** into a finished 9:16
+captioned, seamless-looping video delivered to Telegram. Runs on a Raspberry Pi 5 as a thin
 orchestrator: every heavy step is a cloud API call; the Pi only runs `ffmpeg` and HTTP. Job state is
-**SQLite**. See `docs/superpowers/specs/2026-06-02-brainrot-pipeline-design.md` for the full design.
+**SQLite**. Designs: `docs/superpowers/specs/2026-06-02-brainrot-pipeline-design.md` (original
+single-mode) and `2026-06-04-two-mode-pipeline-design.md` (the dance/closeup split below).
+
+## The two modes (most important concept)
+
+A preset's `mode:` field picks one of two pipelines (default `dance`), carried on `Job` +
+`JobContext`:
+
+- **`dance`** — a scroll-stopping dance video. The woman AND her environment are generated
+  **together as one integrated scene** (`SceneGenerator` → fal FLUX pro ultra), then animated by the
+  high-motion Kling animator. **No greenscreen, no matte, no compositing, no lip-sync.** Character is
+  "same vibe, not exact face" (a fresh attractive woman each render; lock a winner later). Plays the
+  scroll-stop levers: auto karaoke captions, a `hook:` title overlay, beat-synced scene cuts, kinetic
+  camera, seamless loop, platform-safe wardrobe (see gotchas).
+- **`closeup`** — a singing-head video: a portrait lip-synced (Hedra for a frontal face; or Kling
+  `motion_first` + the resync layer for full-body) → BiRefNet matte → trio composite over a
+  generated background, with small side characters. This is the original pipeline; all pre-existing
+  presets are pinned to `mode: closeup`.
 
 ## Architecture in one breath
 
 Seven idempotent Celery tasks run as a `chain`, passing one `ctx` (`core.context.JobContext`,
-serialized to a dict over the wire) from link to link:
+serialized to a dict over the wire) from link to link. Three stages branch on `ctx.mode`:
 
 ```
 prepare_assets → separate_vocals → align_captions → generate_visuals
   → lipsync_render → compose_video → deliver_telegram
+                     dance: scene-gen+Kling   skip      scene compose (cuts/hook/kinetic/loop)
+                     closeup: bg+portrait   Hedra+matte  trio composite + loop
 ```
 
 Each stage is **thin**: mark progress, call ONE provider/compose/delivery function, record an
@@ -27,10 +46,11 @@ Each stage is **thin**: mark progress, call ONE provider/compose/delivery functi
 
 Every cloud stage calls a client from `providers/` chosen by `settings.PROVIDER_MODE`:
 - `fake` (default, and what tests use) → `providers/fakes.py` copies a bundled `fixtures/` artifact.
-  No network, no spend. Exercises the whole chain.
-- `real` → `providers/replicate.py` (Demucs, WhisperX), `providers/fal.py` (FLUX still/portrait,
-  image→video), `providers/lipsync.py` (Hedra/Sync/MagicHour). Selected via `providers/base.py`
-  `get_*` factories.
+  No network, no spend. Exercises the whole chain (both modes).
+- `real` → `providers/replicate.py` (Demucs, WhisperX), `providers/fal.py` (FLUX still/portrait +
+  **scene-gen**), `providers/motion.py` (Kling animate, with `tail_image_url` end-frame),
+  `providers/matting.py` (BiRefNet), `providers/lipsync.py` (Hedra/OmniHuman/Sync/MagicHour +
+  video-lipsync). Selected via `providers/base.py` `get_*` factories.
 
 `compose/` (ffmpeg) and `delivery/` (Telegram) are always real — local/free.
 
@@ -76,6 +96,29 @@ make coverage-ratchet                     # raise the coverage floor (never lowe
 - **`PROVIDER_MODE` is global.** Per-stage live/fake overrides aren't wired yet — a documented
   extension point. To go live incrementally, flip the whole mode and supply the keys for the stages
   you've reached (cheap → expensive, lip-sync last).
+- **FLUX's safety checker returns an all-BLACK image when it flags a prompt** ("attractive woman
+  dancing" trips it), and Kling then hallucinates garbage from the black frame. `RealFalSceneGenerator`
+  passes `enable_safety_checker: False` + `safety_tolerance: "6"` — keep it; control modesty via the
+  prompt, not the checker.
+- **Wardrobe = reach.** Revealing outfits (bikini/lingerie) get the videos age-restricted and
+  suppressed (~0 views). `SCENE_PROMPT_TEMPLATE` deliberately specifies a fitted-but-clothed
+  ("subtly sexy, no nudity/lingerie/swimwear") look. Don't loosen it without knowing the cost.
+- **The intro zoom-punch fights a seamless loop** (frame 0 zoomed vs the last frame; it re-triggers
+  each loop). Dance disables it when looping. Keep that.
+- **Dance loop: `crossfade` vs `endframe`.** `endframe` (Kling start==tail frame) is pixel-seamless
+  but the motion *settles* into a stationary last ~second. Default `crossfade` keeps full energy and
+  dissolves the wrap. See `DANCE_LOOP_MODE`.
+- **Caption tooling, by mode.** Closeup transcribes the full mix guided by preset `lyrics:`. Dance
+  has no lyrics, so it runs Demucs and transcribes the isolated **vocal stem** (a full music mix
+  doesn't transcribe). An untranscribable song raises `EmptyTranscriptionError`, which the stage
+  catches and skips captions (never fails the render). The **hook overlay + captions are burned
+  AFTER the kinetic pass** so they stay stable, not zoomed.
+- **Closeup framing dictates the lip-sync tool.** Full-body → `motion_first` (Kling) + the resync
+  layer (crop+upscale the small head, lip-sync that, paste back). Close-up singer → `lipsync` +
+  Hedra (frontal). Kling on a close-up makes the face look down/away → broken sync.
+- **The trio boss must be NARROW** (full-body or a portrait crop). A wide bust scaled by height
+  overflows 1080px and hides the flanks; crop it to portrait and float small companions via the
+  `TRIO_FLANK_*` knobs (the "moons"/companions layout).
 
 ## Adding things
 
@@ -85,6 +128,11 @@ make coverage-ratchet                     # raise the coverage floor (never lowe
 - **A new stage:** add a thin `@shared_task(**_TASK_OPTS)` in `stages/tasks.py`, insert it into
   `build_chain` in `jobs/orchestrator.py`, add a `JobContext` field for its artifact (bump
   `SCHEMA_VERSION`), and cover it in `tests/test_pipeline.py`.
+- **A new character:** drop a portrait into `presets/characters/` and add a preset (closeup mode).
+  A wide bust also wants a portrait crop (`*_closeup.png`) for trio/boss use.
+- **A new viral lever:** compose-only effects (hook, beat cuts, kinetic, loop) live in
+  `compose/ffmpeg.py` as pure functions and are wired in `compose_video`; they re-compose from cached
+  clips, so iterate on the look without re-paying for generation.
 
 ## Conventions quick-ref
 

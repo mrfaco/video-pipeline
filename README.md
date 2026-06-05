@@ -1,9 +1,15 @@
 # brainrot
 
-An automated, config-driven pipeline that turns **a preset song + a theme + a locked synthetic
-character** into a finished vertical (9:16) video: an invented, ultra-realistic AI talking head
-lip-synced to the song, sitting over a looping animated background, with karaoke-style captions.
-The finished `.mp4` is delivered to **Telegram** for manual review and posting.
+An automated, config-driven pipeline that turns **a preset song + a theme** into a finished vertical
+(9:16) video, delivered to **Telegram** for manual review and posting. It produces one of two kinds
+of video, chosen per-preset by a `mode:` field:
+
+- **`dance`** — a scroll-stopping dance clip: an attractive woman *and* her environment are generated
+  together as one integrated, photoreal scene, animated with a high-motion model. No lip-sync. Layered
+  with auto karaoke captions, a hook/title overlay, beat-synced scene cuts, a kinetic camera, and a
+  seamless loop.
+- **`closeup`** — an invented, ultra-realistic AI singing head lip-synced to the song, matted and
+  composited over a generated background with small side characters, captioned.
 
 Designed to run on a **Raspberry Pi 5** as a thin always-on orchestrator — every heavy stage is a
 cloud API call; the Pi only fires HTTP requests and runs `ffmpeg`.
@@ -17,24 +23,36 @@ cloud API call; the Pi only fires HTTP requests and runs `ffmpeg`.
 
 ## How it works
 
-A job is `(locked character) × (new song + theme)`. It runs as a Celery **chain** of seven
-idempotent stages, each receiving and returning one `ctx` (`core.context.JobContext`) that carries
-job state + artifact paths. All artifacts for a job live under `media/jobs/<job_id>/`.
+A job is `(song + theme [+ character]) × mode`. It runs as a Celery **chain** of seven idempotent
+stages, each receiving and returning one `ctx` (`core.context.JobContext`) that carries job state +
+artifact paths. Three stages branch on `mode`. All artifacts for a job live under `media/jobs/<job_id>/`.
 
 ```
 prepare_assets → separate_vocals → align_captions → generate_visuals
   → lipsync_render → compose_video → deliver_telegram
 ```
 
-| # | Stage | Runs on | Does |
-|---|-------|---------|------|
-| 1 | `prepare_assets`   | Pi (CPU)        | Load + validate preset, normalize audio, build `ctx` |
-| 2 | `separate_vocals`  | Replicate/Demucs| Extract a clean vocal stem (better lip-sync input) |
-| 3 | `align_captions`   | Replicate/WhisperX | Word timestamps → `.ass` captions (skippable) |
-| 4 | `generate_visuals` | fal             | FLUX still → image→video bg loop; FLUX greenscreen portrait |
-| 5 | `lipsync_render`   | Hedra/Sync/MagicHour | Portrait + vocal stem → talking-head clip |
-| 6 | `compose_video`    | Pi/ffmpeg       | Loop bg, chromakey overlay, burn captions, mux guide audio → 1080×1920 mp4 |
-| 7 | `deliver_telegram` | Pi              | Send the mp4 + suggested caption/hashtags to Telegram |
+| # | Stage | Runs on | `dance` | `closeup` |
+|---|-------|---------|---------|-----------|
+| 1 | `prepare_assets`   | Pi (CPU)        | fetch + normalize audio | same |
+| 2 | `separate_vocals`  | Replicate/Demucs| stem (only to caption) | clean vocal stem for lip-sync |
+| 3 | `align_captions`   | Replicate/WhisperX | auto-transcribe stem → captions | full mix + preset lyrics |
+| 4 | `generate_visuals` | fal             | scene-gen (girl-in-scene) → Kling animate (×N for cuts) | FLUX bg loop + portrait(s) |
+| 5 | `lipsync_render`   | Hedra/fal       | **skipped** | Hedra/OmniHuman (or Kling+resync) → matte |
+| 6 | `compose_video`    | Pi/ffmpeg       | beat-cut + captions + hook + kinetic + loop | trio composite + captions + kinetic + loop |
+| 7 | `deliver_telegram` | Pi              | send mp4 + caption | same |
+
+### Viral levers (dance mode, all toggleable in settings)
+
+- **Hook overlay** — a bold `hook:` title pinned at the top (e.g. "POV: …"), burned stable above the
+  kinetic pass.
+- **Beat-synced scene cuts** — `DANCE_SCENE_CUTS=N` generates N scenes and hard-cuts between them on
+  the detected beat grid (N× generation cost).
+- **Kinetic camera** — a per-frame `zoompan` pulsing the zoom on every beat + a subtle handheld shake.
+- **Seamless loop** — dance via the Kling end-frame (or a compose crossfade); closeup via crossfade —
+  so the platform's loop has no visible seam (boosts replays).
+- **Platform-safe wardrobe** — the scene prompt enforces a fitted-but-clothed look; revealing outfits
+  get age-restricted to ~0 views.
 
 ### The Real/Fake provider split
 
@@ -49,6 +67,25 @@ selected by `PROVIDER_MODE`:
 
 This is how you wire vendors **incrementally** (cheap → expensive, lip-sync last) without ever
 touching the architecture.
+
+### Preset shapes
+
+```yaml
+# dance — no character needed; the scene model invents her
+mode: dance
+hook: "POV: when your song comes on in public"   # optional title overlay
+song: { source: "https://vt.tiktok.com/…" }
+theme: "a cozy modern home kitchen, warm golden light, cinematic"
+```
+
+```yaml
+# closeup — a locked character (+ optional backup → trio) sings the song
+mode: closeup
+song: { source: "https://vt.tiktok.com/…" }
+theme: "a swirling psychedelic dreamscape, no people"
+character: { image: presets/characters/statue_man_closeup.png }
+backup:    { image: presets/characters/chrome_man.png }
+```
 
 ---
 
@@ -91,9 +128,10 @@ The build sequence is intentionally incremental. Each step is a single env chang
    FLUX still → image→video loop and the greenscreen portrait artifacts before chaining onward.
 3. **Vocal separation + captions.** Set `REPLICATE_API_TOKEN` (+ the Demucs/WhisperX model refs).
    Cheap, low-risk.
-4. **Lip-sync last** — it carries the singing-quality uncertainty. Pick `LIPSYNC_PROVIDER`
-   (`hedra` | `sync` | `magic_hour`), set its key, and **test on real sung audio** before
-   committing. Magic Hour if singing fidelity matters most.
+4. **Lip-sync last** (`closeup` only) — it carries the singing-quality uncertainty. Pick
+   `LIPSYNC_PROVIDER` (`hedra` | `omnihuman` | `sync` | `magic_hour`), set its key, and **test on real
+   sung audio** before committing. `dance` mode has no lip-sync; its heavy spend is scene-gen + Kling
+   (both on `FAL_KEY`), so a dance video only needs `FAL_KEY` (+ Replicate for captions).
 
 > `PROVIDER_MODE` is currently global. To run, say, only background-video live while keeping the
 > rest fake, the cleanest path is per-stage overrides — a documented extension point, not yet wired.
@@ -104,8 +142,8 @@ The build sequence is intentionally incremental. Each step is a single env chang
 
 1. Receive the clip in Telegram.
 2. Upload to TikTok, **set the clip's volume to 0**, add the official **in-app licensed sound**.
-3. Because the lips were generated against that exact vocal, nudge the two waveforms into
-   alignment (~10 seconds).
+3. For `closeup` videos, because the lips were generated against that exact vocal, nudge the two
+   waveforms into alignment (~10 seconds). `dance` videos have no lip-sync, so just line up the start.
 4. Set the **AI-generated content** disclosure flag (required for synthetic content).
 
 ---
@@ -129,15 +167,18 @@ The build sequence is intentionally incremental. Each step is a single env chang
 
 ```
 config/      Django project (settings, celery, urls). SQLite + Redis + Celery.
-core/        JobContext (the ctx schema) + job_id-namespaced storage helpers.
-jobs/        Job + Artifact models, preset loader, run_job() orchestrator, admin, run_job command.
-stages/      The 7 Celery @shared_task stages (the pipeline spine).
-providers/   Cloud clients with Real + Fake backends (replicate, fal, lipsync) + base interfaces.
-compose/     ffmpeg compose (boomerang loop, chromakey overlay, caption burn-in, mux) + .ass builder.
+core/        JobContext (the ctx schema) + job_id storage + audio/beat helpers.
+jobs/        Job + Artifact models, preset loader (mode/hook parsing), run_job() orchestrator, admin.
+stages/      The 7 Celery @shared_task stages; the dance/closeup branch logic lives here.
+providers/   Cloud clients with Real + Fake backends + base Protocols/factories:
+             replicate (Demucs, WhisperX), fal (FLUX still/portrait/scene-gen),
+             motion (Kling animate + end-frame), matting (BiRefNet), lipsync (Hedra/OmniHuman/Sync/MagicHour).
+compose/     ffmpeg: compose_final (trio), compose_scene (dance), beat_cut_concat, loop_seamless,
+             crop/composite_window (resync), kinetic filter, + .ass caption/hook builders.
 delivery/    Telegram Bot API delivery.
 api/         DRF: Bearer-key auth, trigger job, job status.
 fixtures/    Tiny bundled media the Fake providers return (song, stem, portrait, bg loop, captions).
-presets/     Job definitions (song + lyrics + theme + character).
+presets/     Job definitions (mode + song + theme [+ character/backup/hook]); characters/ holds portraits.
 scripts/     Hook helpers (exception discipline, coverage ratchet, migration sync).
 ```
 
@@ -151,6 +192,7 @@ structured artifacts.
 
 ## Cost (real mode, approximate, mid-2026)
 
-Per usable video ≈ **under ~$1**, dominated by lip-sync + background video. Apply a ~1.4× reroll
-buffer on generative steps. Vocal sep / captions / FLUX stills are cents. See the design doc for
-the full table.
+Per usable video ≈ **under ~$1**, dominated by the video-gen step — `closeup`: lip-sync + background
+video; `dance`: the Kling scene animate (× `DANCE_SCENE_CUTS` for beat cuts). Apply a ~1.4× reroll
+buffer on generative steps. Vocal sep / captions / FLUX stills are cents. See the design doc for the
+full table.
