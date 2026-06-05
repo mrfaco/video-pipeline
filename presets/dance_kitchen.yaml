@@ -1,0 +1,9 @@
+# High-energy dance in a home kitchen. Dance mode generates the (fully-clothed)
+# woman inside the scene and animates it with high-motion Kling — no lip-sync,
+# auto karaoke captions, seamless loop.
+mode: dance
+
+song:
+  source: "https://vt.tiktok.com/ZSQdSe4GR/"
+
+theme: "a cozy modern home kitchen, warm golden lighting, wooden cabinets and marble countertops, sunlight through the window, plants and homey details, cinematic, ultra-detailed"
