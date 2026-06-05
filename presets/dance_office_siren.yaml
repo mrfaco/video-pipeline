@@ -1,0 +1,13 @@
+# Office Siren / Y2K "Bratz doll" dance look (a viral fashion-TikTok aesthetic),
+# with the built-in charm pivot (fierce stare -> genuine smile). The `style:`
+# field swaps the woman's look without touching the rest of the dance pipeline.
+mode: dance
+
+hook: "wait for the smile at the end"
+
+style: "styled in the Office Siren / Y2K Bratz-doll aesthetic — small thin rectangular tinted glasses, a razor-sharp chin-length bob with a precise middle part, an oversized ultra-cropped sweater, a low-rise mini skirt and heavy knee-high boots, sharp symmetrical doll-like styling"
+
+song:
+  source: "REPLACE_WITH_TIKTOK_URL"
+
+theme: "a chic minimalist studio with soft fashion lighting and a seamless backdrop"

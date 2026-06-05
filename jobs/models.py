@@ -35,6 +35,8 @@ class Job(models.Model):
     mode = models.CharField(max_length=16, default="dance")
     # Optional scroll-stop hook/title burned at the top of the video.
     hook = models.CharField(max_length=200, blank=True)
+    # Optional dance look/styling injected into the scene prompt (e.g. Office Siren).
+    style = models.TextField(blank=True)
     theme = models.TextField()
     lyrics = models.TextField(blank=True)
     character_ref = models.CharField(max_length=500)

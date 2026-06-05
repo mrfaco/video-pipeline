@@ -180,19 +180,26 @@ FAL_FLUX_MODEL = env("FAL_FLUX_MODEL", default="fal-ai/flux/dev")
 # omits ``mode:``. The prompt template gets ``{theme}`` substituted in.
 DEFAULT_MODE = env("DEFAULT_MODE", default="dance")
 SCENE_IMAGE_MODEL = env("SCENE_IMAGE_MODEL", default="fal-ai/flux-pro/v1.1-ultra")
-# NOTE: clothing is described explicitly and modestly on purpose — revealing
-# outfits (bikini / crop top / skimpy) get the videos age-restricted and
-# suppressed on TikTok/Reels (→ ~0 views). Keep her stylish and fully dressed.
+# The scene prompt is {theme} (the setting) + {style} (the woman's look, swappable
+# per-preset via `style:`) + an always-on safety clause. NOTE: the wardrobe stays
+# this side of explicit on purpose — revealing outfits (bikini/lingerie) get the
+# videos age-restricted and suppressed (→ ~0 views). DANCE_CHARACTER_STYLE is the
+# default look when a preset gives no `style:`.
 SCENE_PROMPT_TEMPLATE = env(
     "SCENE_PROMPT_TEMPLATE",
     default=(
         "a stunning attractive young woman dancing energetically in {theme}, "
-        "wearing a stylish form-fitting outfit that flatters her figure — fitted "
-        "activewear, a trendy crop top with high-waisted leggings, or a fitted "
-        "mini dress, alluring and subtly sexy yet tasteful, showing her figure "
-        "but never explicit — no nudity, no lingerie, no swimwear, no bikini, "
-        "full body in frame, dynamic confident pose, cinematic lighting, "
+        "{style}, tasteful and never explicit — no nudity, no lingerie, no "
+        "swimwear, full body in frame, dynamic confident pose, cinematic lighting, "
         "photorealistic, highly detailed, vertical 9:16 composition, scroll-stopping"
+    ),
+)
+DANCE_CHARACTER_STYLE = env(
+    "DANCE_CHARACTER_STYLE",
+    default=(
+        "wearing a stylish form-fitting outfit that flatters her figure — fitted "
+        "activewear, a trendy crop top with high-waisted leggings, or a fitted mini "
+        "dress, alluring and subtly sexy, with a fierce confident model expression"
     ),
 )
 FAL_IMAGE_TO_VIDEO_MODEL = env("FAL_IMAGE_TO_VIDEO_MODEL", default="fal-ai/wan-i2v")
@@ -300,7 +307,9 @@ DANCE_MOTION_PROMPT = env(
         "explosive, extremely high-energy dancing — fast, powerful full-body movement, "
         "rapid hip sways, quick spins and turns, jumping, bouncing and grooving hard to a "
         "fast upbeat rhythm, dynamic athletic choreography, hair whipping, arms thrown wide, "
-        "lots of motion, wild and electric energy, never static, the whole body keeps moving"
+        "lots of motion, wild and electric energy, never static, the whole body keeps moving. "
+        "She begins with a fierce, confident, pouty model stare, then near the end breaks "
+        "into a big, bright, genuine smile (the charm pivot)"
     ),
 )
 KLING_MOTION_PROMPT = env(

@@ -78,6 +78,15 @@ def test_load_preset_rejects_bad_mode(tmp_path):
         load_preset(str(p))
 
 
+def test_load_preset_parses_style(tmp_path):
+    p = tmp_path / "s.yaml"
+    p.write_text(
+        'song:\n  audio: fixtures/song.mp3\ntheme: t\nmode: dance\nstyle: "office siren look"\n',
+        encoding="utf-8",
+    )
+    assert load_preset(str(p))["style"] == "office siren look"
+
+
 def test_load_preset_dance_allows_no_character(tmp_path):
     # Dance mode invents the girl in the scene, so a character block is optional.
     p = tmp_path / "dance.yaml"
