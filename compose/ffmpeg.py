@@ -61,6 +61,11 @@ def _probe_duration(path: Path) -> float:
     return float(out.stdout.strip())
 
 
+def probe_duration(path: Path) -> float:
+    """Public wrapper: return a media file's duration in seconds via ffprobe."""
+    return _probe_duration(Path(path))
+
+
 def probe_dimensions(path: Path) -> tuple[int, int]:
     """Return the (width, height) of a video's first video stream via ffprobe."""
     out = subprocess.run(
@@ -191,6 +196,61 @@ def _escape_subtitles_path(path: Path) -> str:
     text = text.replace("'", "\\'")
     text = text.replace("[", "\\[").replace("]", "\\]")
     return text.replace(",", "\\,")
+
+
+def beat_cut_concat(
+    clips: list[Path],
+    out_path: Path,
+    *,
+    total_duration: float,
+    beat_period: float,
+    beat_offset: float,
+    width: int = 1080,
+    height: int = 1920,
+) -> Path:
+    """Hard-cut between ``clips`` on the beat grid into one ``total_duration`` clip.
+
+    Splits the timeline into one roughly-equal segment per clip, snaps each cut
+    point to the nearest beat (``mod(t-offset, period)`` zero), and takes that
+    segment from the start of each clip. Every segment is scaled/padded to
+    ``width``x``height`` at a constant fps so ``concat`` accepts them. Returns a
+    video-only clip; ``compose_scene`` muxes the audio.
+    """
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    n = len(clips)
+
+    def _snap(t: float) -> float:
+        if beat_period <= 0:
+            return t
+        return round((t - beat_offset) / beat_period) * beat_period + beat_offset
+
+    # Cut boundaries: 0, snapped interior points, total. Keep them strictly
+    # increasing so every segment has positive length.
+    bounds = [0.0]
+    for i in range(1, n):
+        nxt = min(max(_snap(i * total_duration / n), bounds[-1] + 0.2), total_duration)
+        bounds.append(nxt)
+    bounds.append(total_duration)
+
+    fit = (
+        f"scale={width}:{height}:force_original_aspect_ratio=decrease,"
+        f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30"
+    )
+    parts = []
+    labels = ""
+    for i in range(n):
+        seg = bounds[i + 1] - bounds[i]
+        parts.append(f"[{i}:v]trim=0:{seg:.3f},setpts=PTS-STARTPTS,{fit}[s{i}]")
+        labels += f"[s{i}]"
+    filtergraph = ";".join(parts) + f";{labels}concat=n={n}:v=1:a=0[v]"
+
+    cmd = ["ffmpeg", "-y"]
+    for clip in clips:
+        cmd += ["-i", str(clip)]
+    cmd += ["-filter_complex", filtergraph, "-map", "[v]", "-an", *_VIDEO_ENCODE, str(out_path)]
+    _run(cmd)
+    return out_path
 
 
 def loop_seamless(src: Path, out_path: Path, duration: float = 0.4) -> Path:

@@ -11,6 +11,7 @@ from django.conf import settings
 
 from compose.captions import build_ass
 from compose.ffmpeg import (
+    beat_cut_concat,
     compose_final,
     compose_scene,
     composite_window,
@@ -180,6 +181,21 @@ def test_compose_scene_produces_video(tmp_path):
     )
     assert out.exists()
     assert probe_dimensions(out) == (1080, 1920)
+
+
+def test_beat_cut_concat_cuts_scenes_on_beats(tmp_path):
+    # Three scenes cut on the beat grid into one 6s clip, all normalised to 1080x1920.
+    clips = [FIXTURES_DIR / "character_lipsync.mp4"] * 3
+    out = beat_cut_concat(
+        clips,
+        tmp_path / "cut.mp4",
+        total_duration=6.0,
+        beat_period=0.5,
+        beat_offset=0.0,
+    )
+    assert out.exists()
+    assert probe_dimensions(out) == (1080, 1920)
+    assert _probe_duration(out) == pytest.approx(6.0, abs=0.4)
 
 
 def test_compose_scene_with_hook(tmp_path):

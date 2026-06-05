@@ -259,6 +259,47 @@ def test_pipeline_dance_mode(tmp_path):
 
 
 @pytest.mark.django_db
+def test_pipeline_dance_beat_cuts(tmp_path):
+    # Dance with 3 beat-synced scene cuts: 3 scene clips generated + cut into one.
+    p = tmp_path / "dance.yaml"
+    p.write_text(
+        "song:\n  audio: fixtures/song.mp3\ntheme: a neon city\nmode: dance\n", encoding="utf-8"
+    )
+    with override_settings(
+        MEDIA_ROOT=tmp_path,
+        PROVIDER_MODE="fake",
+        DANCE_SCENE_CUTS=3,
+        TELEGRAM_BOT_TOKEN="",
+        TELEGRAM_CHAT_ID="",
+    ):
+        job = create_job_from_preset(str(p))
+        run_job(job, eager=True)
+        job.refresh_from_db()
+        assert job.status == Job.Status.DELIVERED, job.error_detail
+        assert _ffprobe_has_video(Path(job.output_path))
+        scene_count = Artifact.objects.filter(job=job, kind="scene").count()
+        assert scene_count == 3
+
+
+@pytest.mark.django_db
+def test_pipeline_dance_with_hook(tmp_path):
+    p = tmp_path / "dance.yaml"
+    p.write_text(
+        'song:\n  audio: fixtures/song.mp3\ntheme: a city\nmode: dance\nhook: "POV: test"\n',
+        encoding="utf-8",
+    )
+    with override_settings(
+        MEDIA_ROOT=tmp_path, PROVIDER_MODE="fake", TELEGRAM_BOT_TOKEN="", TELEGRAM_CHAT_ID=""
+    ):
+        job = create_job_from_preset(str(p))
+        assert job.hook == "POV: test"
+        run_job(job, eager=True)
+        job.refresh_from_db()
+        assert job.status == Job.Status.DELIVERED, job.error_detail
+        assert "hook" in set(Artifact.objects.filter(job=job).values_list("kind", flat=True))
+
+
+@pytest.mark.django_db
 def test_pipeline_motion_first_mode(tmp_path):
     # motion_first runs Kling (animate) -> video lip-sync -> matte; in fake mode
     # those are fixture/passthrough/ffmpeg, so the whole chain still produces a

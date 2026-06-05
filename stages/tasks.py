@@ -19,12 +19,14 @@ from django.conf import settings
 
 from compose.captions import build_ass, build_hook_ass, window_words
 from compose.ffmpeg import (
+    beat_cut_concat,
     compose_final,
     compose_scene,
     composite_window,
     crop_window,
     loop_seamless,
     probe_dimensions,
+    probe_duration,
 )
 from core.audio import clip_audio, normalize_loudness, parse_timerange
 from core.beat import detect_beat_period
@@ -222,28 +224,35 @@ def generate_visuals(payload: dict) -> dict:
     _advance(ctx.job_id, "generate_visuals")
 
     if ctx.mode == "dance":
-        # One integrated scene still (girl + environment), then animate it with
-        # the high-motion model. No greenscreen, no portrait, no separate bg.
-        prompt = settings.SCENE_PROMPT_TEMPLATE.format(theme=ctx.theme)
-        still = artifact_path(ctx.job_id, "scene_still.png")
-        get_scene_generator().generate(prompt, still)
-        _record(ctx.job_id, "generate_visuals", "scene_still", still)
-        clip = artifact_path(ctx.job_id, "scene_motion.mp4")
-        # "endframe" loop: end the dance on the start frame (Kling returns home).
-        # "crossfade"/"off": let Kling dance at full energy; compose handles the
-        # loop (or not), so the motion never settles into a stationary tail.
-        endframe = settings.LOOP_SEAMLESS_ENABLED and settings.DANCE_LOOP_MODE == "endframe"
-        tail = still if endframe else None
-        # Dance uses its own aggressive motion prompt + lower cfg for big energy.
-        get_animator().animate(
-            still,
-            clip,
-            tail_image_path=tail,
-            prompt=settings.DANCE_MOTION_PROMPT,
-            cfg_scale=settings.DANCE_KLING_CFG,
+        # One or more integrated scene stills (girl + environment), each animated
+        # with the high-motion model. N>1 → beat-cut between them in compose.
+        # No greenscreen, no portrait, no separate bg.
+        base_prompt = settings.SCENE_PROMPT_TEMPLATE.format(theme=ctx.theme)
+        n = max(1, settings.DANCE_SCENE_CUTS)
+        shots = settings.DANCE_SHOT_VARIATIONS or [""]
+        # "endframe" loop only makes sense for a single continuous scene.
+        endframe = (
+            n == 1
+            and settings.LOOP_SEAMLESS_ENABLED
+            and settings.DANCE_LOOP_MODE == "endframe"
         )
-        ctx.scene_clip_path = str(clip)
-        _record(ctx.job_id, "generate_visuals", "scene", clip)
+        clips: list[str] = []
+        for i in range(n):
+            prompt = f"{base_prompt}, {shots[i % len(shots)]}" if n > 1 else base_prompt
+            still = artifact_path(ctx.job_id, f"scene_still_{i}.png")
+            get_scene_generator().generate(prompt, still)
+            clip = artifact_path(ctx.job_id, f"scene_motion_{i}.mp4")
+            get_animator().animate(
+                still,
+                clip,
+                tail_image_path=(still if endframe else None),
+                prompt=settings.DANCE_MOTION_PROMPT,
+                cfg_scale=settings.DANCE_KLING_CFG,
+            )
+            clips.append(str(clip))
+            _record(ctx.job_id, "generate_visuals", "scene", clip)
+        ctx.scene_clip_paths = clips
+        ctx.scene_clip_path = clips[0]
         return ctx.to_dict()
 
     background = get_background_generator()
@@ -400,9 +409,21 @@ def compose_video(payload: dict) -> dict:
         # looping so the Kling end-frame loop stays seam-free; the beat pulse
         # still carries the energy.
         dance_intro = 1.0 if settings.LOOP_SEAMLESS_ENABLED else settings.INTRO_PUNCH_ZOOM
+        # Beat-synced cuts: hard-cut the N scene clips on the beat grid into one
+        # clip. A single scene passes straight through.
+        if ctx.scene_clip_paths and len(ctx.scene_clip_paths) > 1:
+            scene_clip: Path = beat_cut_concat(
+                [Path(p) for p in ctx.scene_clip_paths],
+                artifact_path(ctx.job_id, "scene_cut.mp4"),
+                total_duration=probe_duration(Path(audio)),
+                beat_period=beat_period,
+                beat_offset=beat_offset,
+            )
+        else:
+            scene_clip = _require_path(ctx.scene_clip_path)
         # Single integrated scene clip — no overlay, no matte, no lip-sync layer.
         compose_scene(
-            scene_clip=_require_path(ctx.scene_clip_path),
+            scene_clip=scene_clip,
             audio=audio,
             captions=captions,
             hook_captions=hook_captions,

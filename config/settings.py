@@ -257,6 +257,21 @@ KLING_CFG = env.float("KLING_CFG", default=0.8)
 # lip-sync, so no "stay still / relaxed mouth" constraints) and a lower cfg to
 # give the model freedom for big, explosive movement.
 DANCE_KLING_CFG = env.float("DANCE_KLING_CFG", default=0.5)
+# Beat-synced scene cuts: generate this many scenes (varied shot/angle) and
+# hard-cut between them on the beat drops. 1 = single continuous scene (no extra
+# cost). >1 multiplies the scene-gen + Kling spend by that factor.
+DANCE_SCENE_CUTS = env.int("DANCE_SCENE_CUTS", default=1)
+# Per-scene shot variation appended to the scene prompt (cycled) so cuts look
+# like different angles, not a repeat.
+DANCE_SHOT_VARIATIONS = env.list(
+    "DANCE_SHOT_VARIATIONS",
+    default=[
+        "full-body wide shot",
+        "medium shot from a different angle",
+        "dynamic low-angle shot",
+        "side-on full-body shot",
+    ],
+)
 DANCE_MOTION_PROMPT = env(
     "DANCE_MOTION_PROMPT",
     default=(

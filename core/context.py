@@ -15,7 +15,7 @@ from __future__ import annotations
 from pydantic import BaseModel, ConfigDict
 
 # Bump when the shape of JobContext changes (AGENTS.md §11 schema versioning).
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 
 
 class JobContext(BaseModel):
@@ -82,6 +82,9 @@ class JobContext(BaseModel):
     # dance mode: the single integrated scene clip (girl + environment animated
     # together); used in place of the background/portrait/lipsync layers.
     scene_clip_path: str | None = None
+    # dance mode with beat-synced cuts: the N generated scene clips, hard-cut on
+    # the beat grid in compose. Empty/one element = single continuous scene.
+    scene_clip_paths: list[str] = []
 
     # --- lipsync_render ---
     lipsync_path: str | None = None
