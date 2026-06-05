@@ -1,0 +1,18 @@
+# Singing-head duo: the white statue man leads (frontal face → Hedra lip-sync)
+# with the chrome brainrot creature flanking, over a swirling psychedelic
+# background. Run:
+#
+#   PROVIDER_MODE=real MOTION_MODE=lipsync LIPSYNC_PROVIDER=hedra \
+#   ./venv/bin/python manage.py run_job presets/duo_psychedelic.yaml --sync
+mode: closeup
+
+song:
+  source: "https://vt.tiktok.com/ZSQdrFxN1/"
+
+theme: "a swirling psychedelic dreamscape, vivid kaleidoscopic rainbow colors, fractal patterns, trippy liquid waves, hypnotic neon swirls, melting colors, ultra-detailed, no people"
+
+character:
+  image: presets/characters/statue_man.png   # lead singing head (centre)
+
+backup:
+  image: presets/characters/chrome_man.png    # flanking companion (mirrored)
