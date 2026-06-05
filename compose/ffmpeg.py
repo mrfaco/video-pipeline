@@ -594,19 +594,19 @@ def compose_scene(
         chain += f";[v]subtitles='{hook_esc}'[vh]"
         video_label = "[vh]"
 
-    # ``audio`` None ⇒ a mute video (vibe mode syncs with nothing; the sound is
-    # added at post time), bounded to the scene clip's own length.
+    # Length is the scene clip's; ``audio`` None ⇒ a mute video (vibe). Otherwise
+    # the audio is stream-looped to fill — a longer (multi-take) video can
+    # outrun a short song, and the operator replaces the sound at post anyway.
+    duration = _probe_duration(Path(scene_clip))
     if audio is None:
-        duration = _probe_duration(Path(scene_clip))
         cmd = [
             "ffmpeg", "-y", "-i", str(scene_clip),
             "-filter_complex", chain, "-map", video_label, "-an",
             "-t", f"{duration:.3f}", *_VIDEO_ENCODE, str(out_path),
         ]
     else:
-        duration = min(_probe_duration(Path(audio)), _probe_duration(Path(scene_clip)))
         cmd = [
-            "ffmpeg", "-y", "-i", str(scene_clip), "-i", str(audio),
+            "ffmpeg", "-y", "-i", str(scene_clip), "-stream_loop", "-1", "-i", str(audio),
             "-filter_complex", chain, "-map", video_label, "-map", "1:a",
             "-t", f"{duration:.3f}", *_VIDEO_ENCODE, "-c:a", "aac", str(out_path),
         ]

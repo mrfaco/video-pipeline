@@ -325,6 +325,33 @@ def test_pipeline_vibe_mode(tmp_path):
 
 
 @pytest.mark.django_db
+def test_pipeline_dance_longer_same_girl(tmp_path):
+    # DANCE_TARGET_SECONDS > 0 → one still, ceil(target/KLING) Kling takes of the
+    # SAME woman, cut together (same girl, longer). KLING_DURATION default "10",
+    # target 18 → 2 takes.
+    p = tmp_path / "dance.yaml"
+    p.write_text(
+        "song:\n  audio: fixtures/song.mp3\ntheme: a club\nmode: dance\n", encoding="utf-8"
+    )
+    with override_settings(
+        MEDIA_ROOT=tmp_path,
+        PROVIDER_MODE="fake",
+        DANCE_TARGET_SECONDS=18,
+        TELEGRAM_BOT_TOKEN="",
+        TELEGRAM_CHAT_ID="",
+    ):
+        job = create_job_from_preset(str(p))
+        run_job(job, eager=True)
+        job.refresh_from_db()
+        assert job.status == Job.Status.DELIVERED, job.error_detail
+        assert _ffprobe_has_video(Path(job.output_path))
+        kinds = list(Artifact.objects.filter(job=job, kind="scene").values_list("kind", flat=True))
+        assert len(kinds) == 2  # ceil(18/10) = 2 takes
+        # one shared still drives both takes (same girl)
+        assert Artifact.objects.filter(job=job, kind="scene_still").count() == 1
+
+
+@pytest.mark.django_db
 def test_pipeline_dance_with_hook(tmp_path):
     p = tmp_path / "dance.yaml"
     p.write_text(

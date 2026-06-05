@@ -11,6 +11,7 @@ bookkeeping lives in ``stages.base.PipelineTask``. Artifacts are namespaced by
 from __future__ import annotations
 
 import logging
+import math
 import shutil
 from pathlib import Path
 
@@ -250,29 +251,43 @@ def generate_visuals(payload: dict) -> dict:
             cfg = settings.DANCE_KLING_CFG
             n = max(1, settings.DANCE_SCENE_CUTS)
             shots = settings.DANCE_SHOT_VARIATIONS or [""]
-        # "endframe" loop only makes sense for a single continuous dance scene; a
-        # vibe pan loops via crossfade so the camera keeps one direction.
-        endframe = (
-            ctx.mode == "dance"
-            and n == 1
-            and settings.LOOP_SEAMLESS_ENABLED
-            and settings.DANCE_LOOP_MODE == "endframe"
-        )
         clips: list[str] = []
-        for i in range(n):
-            prompt = f"{base_prompt}, {shots[i % len(shots)]}" if n > 1 else base_prompt
-            still = artifact_path(ctx.job_id, f"scene_still_{i}.png")
-            get_scene_generator().generate(prompt, still)
-            clip = artifact_path(ctx.job_id, f"scene_motion_{i}.mp4")
-            get_animator().animate(
-                still,
-                clip,
-                tail_image_path=(still if endframe else None),
-                prompt=motion_prompt,
-                cfg_scale=cfg,
+        # "Longer" path: one woman (one still) animated N takes → same girl, more
+        # seconds. Kling caps a clip at KLING_DURATION, so N = ceil(target/cap).
+        longer = ctx.mode == "dance" and settings.DANCE_TARGET_SECONDS > 0
+        if longer:
+            takes = math.ceil(settings.DANCE_TARGET_SECONDS / float(settings.KLING_DURATION))
+            still = artifact_path(ctx.job_id, "scene_still_0.png")
+            get_scene_generator().generate(base_prompt, still)
+            _record(ctx.job_id, "generate_visuals", "scene_still", still)
+            for i in range(takes):
+                clip = artifact_path(ctx.job_id, f"scene_motion_{i}.mp4")
+                get_animator().animate(still, clip, prompt=motion_prompt, cfg_scale=cfg)
+                clips.append(str(clip))
+                _record(ctx.job_id, "generate_visuals", "scene", clip)
+        else:
+            # "endframe" loop only makes sense for a single continuous dance scene;
+            # a vibe pan loops via crossfade so the camera keeps one direction.
+            endframe = (
+                ctx.mode == "dance"
+                and n == 1
+                and settings.LOOP_SEAMLESS_ENABLED
+                and settings.DANCE_LOOP_MODE == "endframe"
             )
-            clips.append(str(clip))
-            _record(ctx.job_id, "generate_visuals", "scene", clip)
+            for i in range(n):
+                prompt = f"{base_prompt}, {shots[i % len(shots)]}" if n > 1 else base_prompt
+                still = artifact_path(ctx.job_id, f"scene_still_{i}.png")
+                get_scene_generator().generate(prompt, still)
+                clip = artifact_path(ctx.job_id, f"scene_motion_{i}.mp4")
+                get_animator().animate(
+                    still,
+                    clip,
+                    tail_image_path=(still if endframe else None),
+                    prompt=motion_prompt,
+                    cfg_scale=cfg,
+                )
+                clips.append(str(clip))
+                _record(ctx.job_id, "generate_visuals", "scene", clip)
         ctx.scene_clip_paths = clips
         ctx.scene_clip_path = clips[0]
         return ctx.to_dict()
@@ -446,10 +461,18 @@ def compose_video(payload: dict) -> dict:
         # Beat-synced cuts: hard-cut the N scene clips on the beat grid into one
         # clip. A single scene passes straight through.
         if ctx.scene_clip_paths and len(ctx.scene_clip_paths) > 1:
+            # A target length (same girl, N takes) overrides the song length;
+            # otherwise fast beat cuts fill the song. Capped to the material.
+            material = sum(probe_duration(Path(p)) for p in ctx.scene_clip_paths)
+            target = (
+                float(settings.DANCE_TARGET_SECONDS)
+                if settings.DANCE_TARGET_SECONDS > 0
+                else probe_duration(Path(audio))
+            )
             scene_clip: Path = beat_cut_concat(
                 [Path(p) for p in ctx.scene_clip_paths],
                 artifact_path(ctx.job_id, "scene_cut.mp4"),
-                total_duration=probe_duration(Path(audio)),
+                total_duration=min(target, material),
                 beat_period=beat_period,
                 beat_offset=beat_offset,
             )

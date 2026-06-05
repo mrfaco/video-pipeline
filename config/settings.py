@@ -268,6 +268,13 @@ DANCE_KLING_CFG = env.float("DANCE_KLING_CFG", default=0.5)
 # hard-cut between them on the beat drops. 1 = single continuous scene (no extra
 # cost). >1 multiplies the scene-gen + Kling spend by that factor.
 DANCE_SCENE_CUTS = env.int("DANCE_SCENE_CUTS", default=1)
+# Target a longer dance video. Kling caps one clip at KLING_DURATION (~10s), so
+# >0 generates ONE woman (one scene still) and animates her ceil(target/KLING)
+# times, hard-cutting the takes on the beat → a longer video of the SAME girl.
+# The audio is looped to fill. 0 = natural single-clip length. The operator can
+# trim to taste. (This is the "same girl, longer"; DANCE_SCENE_CUTS is the
+# "different scenes, beat cuts" variety knob.)
+DANCE_TARGET_SECONDS = env.int("DANCE_TARGET_SECONDS", default=0)
 # Per-scene shot variation appended to the scene prompt (cycled) so cuts look
 # like different angles, not a repeat.
 DANCE_SHOT_VARIATIONS = env.list(
