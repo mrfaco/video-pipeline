@@ -1,0 +1,10 @@
+# Cyber / Y2K-rave look, production version: real TikTok sound + karaoke
+# captions (the style-library dance_cyber_y2k.yaml is the mute/caption-less test).
+mode: dance
+
+song:
+  source: "https://vt.tiktok.com/ZSQ8934Yb/"
+
+style: "Y2K cyber-rave aesthetic — sleek hair with butterfly clips, metallic holographic makeup, a fitted metallic silver top with a futuristic mini skirt and chunky platform boots, shiny and futuristic"
+
+theme: "a neon cyberpunk club, glowing lasers and holographic lights, dark with vivid colours"
