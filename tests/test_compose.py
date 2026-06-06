@@ -263,3 +263,21 @@ def test_compose_final_missing_background_raises(tmp_path):
             captions=None,
             out_path=tmp_path / "final_fail.mp4",
         )
+
+
+def test_normalize_video_strips_audio_and_resizes(tmp_path):
+    from compose.ffmpeg import normalize_video, probe_dimensions
+
+    out = tmp_path / "drive.mp4"
+    normalize_video(
+        Path("fixtures/background_loop.mp4"), out, width=540, height=960, max_seconds=2.0
+    )
+    assert out.is_file()
+    assert probe_dimensions(out) == (540, 960)
+    streams = json.loads(
+        subprocess.run(
+            ["ffprobe", "-v", "error", "-show_streams", "-of", "json", str(out)],
+            check=True, capture_output=True,
+        ).stdout
+    )["streams"]
+    assert not any(s.get("codec_type") == "audio" for s in streams)

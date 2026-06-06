@@ -531,6 +531,35 @@ def compose_final(
     return out_path
 
 
+def normalize_video(
+    in_path: Path,
+    out_path: Path,
+    *,
+    width: int = 1080,
+    height: int = 1920,
+    max_seconds: float = 10.0,
+) -> Path:
+    """Normalize a driving clip to a muted 9:16 video for motion transfer.
+
+    Scale-to-fill ``width``x``height`` (cover then center-crop), strip audio,
+    and trim to ``max_seconds``. Returns ``out_path``.
+    """
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    vf = (
+        f"scale={width}:{height}:force_original_aspect_ratio=increase,"
+        f"crop={width}:{height},setsar=1"
+    )
+    cmd = [
+        "ffmpeg", "-y", "-i", str(in_path),
+        "-t", f"{max_seconds:.3f}",
+        "-vf", vf, "-an",
+        *_VIDEO_ENCODE, str(out_path),
+    ]
+    _run(cmd)
+    return out_path
+
+
 def compose_scene(
     *,
     scene_clip: Path,
