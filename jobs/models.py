@@ -37,6 +37,10 @@ class Job(models.Model):
     hook = models.CharField(max_length=200, blank=True)
     # Optional dance look/styling injected into the scene prompt (e.g. Office Siren).
     style = models.TextField(blank=True)
+    # Optional dance motion prompt override (e.g. an OOTD walk instead of dancing).
+    motion = models.TextField(blank=True)
+    # Per-preset captions toggle (e.g. off for the clean OOTD/vibe aesthetic).
+    captions_enabled = models.BooleanField(default=True)
     theme = models.TextField()
     lyrics = models.TextField(blank=True)
     character_ref = models.CharField(max_length=500)

@@ -15,7 +15,7 @@ from __future__ import annotations
 from pydantic import BaseModel, ConfigDict
 
 # Bump when the shape of JobContext changes (AGENTS.md §11 schema versioning).
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 
 
 class JobContext(BaseModel):
@@ -46,6 +46,9 @@ class JobContext(BaseModel):
     # dance mode: the woman's look/styling injected into the scene prompt
     # (e.g. an "Office Siren" aesthetic). None = settings.DANCE_CHARACTER_STYLE.
     style: str | None = None
+    # dance mode: the Kling motion prompt (e.g. an OOTD "walk toward the camera"
+    # instead of dancing). None = settings.DANCE_MOTION_PROMPT.
+    motion: str | None = None
     # A ready-made greenscreen portrait to use as-is (preset ``character.image``),
     # skipping portrait generation. None means generate from ``character_ref``.
     character_image: str | None = None

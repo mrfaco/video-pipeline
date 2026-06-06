@@ -325,6 +325,28 @@ def test_pipeline_vibe_mode(tmp_path):
 
 
 @pytest.mark.django_db
+def test_pipeline_dance_motion_and_captions_off(tmp_path):
+    # A preset motion override + captions:false → delivers with no captions.
+    p = tmp_path / "ootd.yaml"
+    p.write_text(
+        "song:\n  audio: fixtures/song.mp3\ntheme: a wall\nmode: dance\n"
+        'captions: false\nmotion: "walks toward the camera"\n',
+        encoding="utf-8",
+    )
+    with override_settings(
+        MEDIA_ROOT=tmp_path, PROVIDER_MODE="fake", TELEGRAM_BOT_TOKEN="", TELEGRAM_CHAT_ID=""
+    ):
+        job = create_job_from_preset(str(p))
+        assert job.motion == "walks toward the camera"
+        assert job.captions_enabled is False
+        run_job(job, eager=True)
+        job.refresh_from_db()
+        assert job.status == Job.Status.DELIVERED, job.error_detail
+        kinds = set(Artifact.objects.filter(job=job).values_list("kind", flat=True))
+        assert {"captions", "vocal_stem"} & kinds == set()  # captions off → no demucs/captions
+
+
+@pytest.mark.django_db
 def test_pipeline_dance_with_hook(tmp_path):
     p = tmp_path / "dance.yaml"
     p.write_text(
