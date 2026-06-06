@@ -342,7 +342,10 @@ MIMICMOTION_MODEL = env(
         "b3edd455f68ec4ccf045da8732be7db837cb8832d1a2459ef057ddcd3ff87dea"
     ),
 )
-MIMICMOTION_RESOLUTION = env.int("MIMICMOTION_RESOLUTION", default=576)
+# Output video HEIGHT in px (width auto-derived from the drive aspect). Model
+# max is 1024; 576 (the model default) ends up ~324x576 for a 9:16 clip and
+# looks soft once compose upscales it to 1080x1920, so we render at the max.
+MIMICMOTION_RESOLUTION = env.int("MIMICMOTION_RESOLUTION", default=1024)
 MIMICMOTION_FPS = env.int("MIMICMOTION_FPS", default=24)
 # The appearance still: a clean, full-body, neutral standing pose on a plain
 # backdrop tracks far better in MimicMotion than a busy dance scene. {theme} sets
