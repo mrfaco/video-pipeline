@@ -74,28 +74,39 @@ def load_preset(path: str | Path) -> dict:
     theme = _require(data, "theme", str(preset_path))
 
     mode = str(data.get("mode", "dance")).strip().lower()
-    if mode not in {"dance", "closeup", "vibe"}:
+    if mode not in {"dance", "closeup", "vibe", "mimic"}:
         raise PresetError(
-            f"{preset_path}: mode must be 'dance', 'closeup', or 'vibe', got {mode!r}."
+            f"{preset_path}: mode must be 'dance', 'closeup', 'vibe', or 'mimic', got {mode!r}."
         )
 
     framing = str(data.get("framing", "full")).strip().lower()
     if framing not in {"full", "close"}:
         raise PresetError(f"{preset_path}: framing must be 'full' or 'close', got {framing!r}.")
 
-    # Dance mode generates the girl inside the scene, so a character block is
-    # optional. Closeup mode lip-syncs a specific portrait, so it's required.
-    if mode == "closeup":
+    # Dance/vibe generate the girl in the scene → character optional. Closeup
+    # lip-syncs a specific portrait, and mimic transfers motion onto a locked
+    # character → both require one.
+    if mode in ("closeup", "mimic"):
         character: object = _require(data, "character", str(preset_path))
     else:
         character = data.get("character")
 
     # Vibe videos sync with nothing → they're MUTE: no song needed, no download.
     # (You add the TikTok sound at post time.) dance/closeup need a guide track.
+    # mimic mode: a driving dance video (required). Forbid a song — mimic is mute.
+    drive_source = ""
+    drive = data.get("drive")
+    if mode == "mimic":
+        if data.get("song"):
+            raise PresetError(f"{preset_path}: mimic mode is mute — remove the 'song' key.")
+        if not isinstance(drive, dict) or not drive.get("source"):
+            raise PresetError(f"{preset_path}: mimic mode needs 'drive.source' (a URL or path).")
+        drive_source = str(drive["source"]).strip()
+
     audio_path: Path | None = None
     source = None
     song = data.get("song")
-    if mode != "vibe":
+    if mode not in ("vibe", "mimic"):
         if not isinstance(song, dict):
             raise PresetError("Preset 'song' must be a mapping with an 'audio' or 'source' key.")
         # Exactly one of a local file (``audio``) or a fetchable URL/query
@@ -141,6 +152,7 @@ def load_preset(path: str | Path) -> dict:
         "style": (str(data.get("style")).strip() if data.get("style") else ""),
         "motion": (str(data.get("motion")).strip() if data.get("motion") else ""),
         "framing": framing,
+        "drive_source": drive_source,
         "captions": bool(data.get("captions", True)),
         "lyrics": (song.get("lyrics") or "").strip(),
         "theme": str(theme).strip(),

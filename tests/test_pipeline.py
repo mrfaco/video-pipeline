@@ -493,3 +493,54 @@ def test_stage_failure_marks_job(tmp_path):
         assert job.status == Job.Status.FAILED
         assert job.failed_stage == "separate_vocals"
         assert "demucs exploded" in job.error_detail
+
+
+# --- mimic mode -----------------------------------------------------------
+
+
+def test_load_preset_mimic_parses(tmp_path):
+    p = tmp_path / "mimic.yaml"
+    p.write_text(
+        "mode: mimic\ntheme: a club\n"
+        "drive:\n  source: https://example.com/dance\n"
+        "character:\n  image: fixtures/character_portrait.png\n",
+        encoding="utf-8",
+    )
+    preset = load_preset(str(p))
+    assert preset["mode"] == "mimic"
+    assert preset["drive_source"] == "https://example.com/dance"
+    assert preset["character_image"].endswith("character_portrait.png")
+
+
+def test_load_preset_mimic_requires_drive(tmp_path):
+    p = tmp_path / "mimic.yaml"
+    p.write_text(
+        "mode: mimic\ntheme: a club\n"
+        "character:\n  image: fixtures/character_portrait.png\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(PresetError):
+        load_preset(str(p))
+
+
+def test_load_preset_mimic_requires_character(tmp_path):
+    p = tmp_path / "mimic.yaml"
+    p.write_text(
+        "mode: mimic\ntheme: a club\ndrive:\n  source: https://example.com/dance\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(PresetError):
+        load_preset(str(p))
+
+
+def test_load_preset_mimic_forbids_song(tmp_path):
+    p = tmp_path / "mimic.yaml"
+    p.write_text(
+        "mode: mimic\ntheme: a club\n"
+        "drive:\n  source: https://example.com/dance\n"
+        "song:\n  audio: fixtures/song.mp3\n"
+        "character:\n  image: fixtures/character_portrait.png\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(PresetError):
+        load_preset(str(p))
