@@ -1,0 +1,17 @@
+# Mimic mode: the locked neon girl performs the EXACT moves of a driving dance
+# video (MimicMotion motion transfer). Drop the trending dance URL into
+# drive.source. Output is MUTE — add the trending sound at post. Her identity is
+# held from presets/characters/neon_girl.png via PuLID.
+mode: mimic
+
+drive:
+  source: "REPLACE_WITH_DANCE_VIDEO_URL"
+
+character:
+  image: presets/characters/neon_girl.png
+
+style: "Y2K cyber-rave aesthetic — sleek hair, metallic holographic makeup, a fitted metallic holographic outfit, shiny and futuristic"
+
+theme: "a neon cyberpunk club, glowing lasers and holographic lights, dark with vivid colours, plain uncluttered backdrop"
+
+hook: ""
