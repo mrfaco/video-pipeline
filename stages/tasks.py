@@ -498,13 +498,14 @@ def compose_video(payload: dict) -> dict:
             out_path=compose_target,
         )
     elif ctx.mode == "mimic":
-        # Motion-transfer clip → mute scene compose + optional hook + seamless
-        # loop. No captions, no kinetic (mute → no beat grid).
+        # Motion-transfer clip → clean mute scene compose + seamless loop. NO
+        # text at all (no captions, no hook) — the operator adds captions at
+        # post — and no kinetic (mute → no beat grid).
         compose_scene(
             scene_clip=_require_path(ctx.scene_clip_path),
             audio=None,
             captions=None,
-            hook_captions=hook_captions,
+            hook_captions=None,
             out_path=compose_target,
         )
     elif ctx.mode == "dance":

@@ -40,8 +40,8 @@ character:
   image: presets/characters/neon_girl.png   # REQUIRED — locked identity (PuLID reference)
 theme: "neon cyber club, plain dark backdrop"   # the appearance still's setting
 style: "metallic holographic crop top and shorts"  # optional; defaults to DANCE_CHARACTER_STYLE
-hook: "she ate this 💅"   # optional top-anchored text overlay
 # no song: key — mimic is mute
+# no hook/captions — mimic output is clean (no text); add captions at post
 ```
 
 Rules (enforced in `jobs/presets.py`, loud at submit):
@@ -53,7 +53,8 @@ Rules (enforced in `jobs/presets.py`, loud at submit):
 - `character` is **required** for mimic (the appearance needs a locked identity). Same parse rules
   as closeup (`image` / `description` / `identity_asset`).
 - `song` is **forbidden** for mimic (it is mute). A `song:` key on a mimic preset is a `PresetError`.
-- `theme` is required (as for every mode). `style`, `hook` are optional.
+- `theme` is required (as for every mode). `style` is optional. mimic carries **no text** — no
+  captions and no hook overlay (the operator adds captions at post), so a `hook:` key is ignored.
 
 ## Data flow through the seven stages
 
@@ -61,14 +62,14 @@ Rules (enforced in `jobs/presets.py`, loud at submit):
 prepare_assets → separate_vocals → align_captions → generate_visuals
   → lipsync_render → compose_video → deliver_telegram
    mimic:  (mute; fetch+normalize drive video)  skip  skip
-           appearance-still(PuLID) + motion-transfer   skip   mute scene compose + hook + loop
+           appearance-still(PuLID) + motion-transfer   skip   clean mute scene compose + loop (no text)
 ```
 
 1. **`prepare_assets`** — mimic is **mute** (like vibe): no audio fetch/normalize. Instead it
    acquires the **driving video**: `fetch_video(drive_source, drive_raw.mp4)` (yt-dlp), then
    `normalize_video(...)` → `drive.mp4` (scale/center-crop to 9:16, strip audio, cap length).
    Returns a `JobContext` with `mode="mimic"`, `enable_captions=False`, `song_path=""`,
-   `drive_video_path` set, `character_image`/`character_ref` carried, `hook`/`style`/`theme` carried.
+   `drive_video_path` set, `character_image`/`character_ref` carried, `style`/`theme` carried.
 
 2. **`separate_vocals`** — skipped. The existing guard
    (`ctx.mode != "closeup" and not (ctx.mode == "dance" and ctx.enable_captions)`) already returns
@@ -89,10 +90,10 @@ prepare_assets → separate_vocals → align_captions → generate_visuals
 
 6. **`compose_video`** — new mimic branch, between the `vibe` and `dance` branches:
    - `audio = None` (mute, like vibe).
-   - Optional `hook_captions` from `ctx.hook` (top-anchored `build_hook_ass`).
-   - No captions, no kinetic camera (kinetic needs a beat grid, which needs audio).
+   - **No text:** no captions and no hook overlay (the operator adds captions at post), no kinetic
+     camera (kinetic needs a beat grid, which needs audio).
    - `compose_scene(scene_clip=scene_clip_path, audio=None, captions=None,
-     hook_captions=hook_captions, out_path=compose_target)`.
+     hook_captions=None, out_path=compose_target)`.
    - Seamless loop: `crossfade_loop = LOOP_SEAMLESS_ENABLED` (mimic falls into the non-dance branch
      of the existing crossfade selection), then `loop_seamless(...)`.
 
@@ -167,7 +168,7 @@ ffmpeg: scale to cover then center-crop to `width`x`height` (9:16), `-an` (strip
 ### Preset
 
 `presets/mimic_neon_girl.yaml` — neon girl (`character.image`), a driving dance URL placeholder,
-a cyber theme, optional hook.
+a cyber theme. No text (no hook/captions).
 
 ## Testing
 

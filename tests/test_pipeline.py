@@ -570,8 +570,7 @@ def test_pipeline_mimic_mode(tmp_path):
     p.write_text(
         "mode: mimic\ntheme: a neon club\n"
         "drive:\n  source: fixtures/background_loop.mp4\n"
-        "character:\n  image: fixtures/character_portrait.png\n"
-        'hook: "she ate"\n',
+        "character:\n  image: fixtures/character_portrait.png\n",
         encoding="utf-8",
     )
     with override_settings(
@@ -593,6 +592,6 @@ def test_pipeline_mimic_mode(tmp_path):
         )["streams"]
         assert not any(s.get("codec_type") == "audio" for s in streams)
         kinds = set(Artifact.objects.filter(job=job).values_list("kind", flat=True))
-        assert {"drive", "appearance_still", "scene", "hook", "output"} <= kinds
-        # No singer/caption machinery ran.
-        assert {"vocal_stem", "captions", "portrait", "lipsync"} & kinds == set()
+        assert {"drive", "appearance_still", "scene", "output"} <= kinds
+        # Clean — NO text (no captions, no hook) — and no singer machinery.
+        assert {"vocal_stem", "captions", "hook", "portrait", "lipsync"} & kinds == set()

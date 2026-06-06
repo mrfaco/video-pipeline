@@ -13,7 +13,7 @@ single-mode) and `2026-06-04-two-mode-pipeline-design.md` (the dance/closeup spl
 
 ## The three modes (most important concept)
 
-A preset's `mode:` field picks one of three pipelines (default `dance`), carried on `Job` +
+A preset's `mode:` field picks one of four pipelines (default `dance`), carried on `Job` +
 `JobContext`:
 
 - **`dance`** — a scroll-stopping dance video. The woman AND her environment are generated
@@ -31,6 +31,14 @@ A preset's `mode:` field picks one of three pipelines (default `dance`), carried
   no hook, no kinetic) → seamless loop. **Mute** — `prepare_assets` skips the audio fetch entirely
   (a vibe preset needs no `song:`); the operator adds the sound at post. The cheapest mode (one
   scene-gen + one Kling). Reuses the dance scene-gen plumbing; skips vocals/captions/lipsync.
+- **`mimic`** — true **motion transfer**: a locked character performs the *exact* moves of a driving
+  dance video (not Kling's loose approximation). `prepare_assets` downloads + normalizes the
+  `drive:` clip (9:16, muted); `generate_visuals` scene-gens a clean appearance still (PuLID locks
+  identity from `character.image`) then drives it through `MotionTransfer` (`providers/motion_transfer.py`
+  → MimicMotion on Replicate, **explicit prediction polling** — the blocking `client.run()` times
+  out on cold start). **Mute** + seamless-looped, **no text at all** (no captions, no hook — the
+  operator adds captions at post) and no kinetic. Requires `drive` + `character`, forbids `song`.
+  Reserve for copying a *specific* trending dance.
 
 ## Architecture in one breath
 

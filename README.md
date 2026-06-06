@@ -1,7 +1,7 @@
 # brainrot
 
 An automated, config-driven pipeline that turns **a preset song + a theme** into a finished vertical
-(9:16) video, delivered to **Telegram** for manual review and posting. It produces one of three kinds
+(9:16) video, delivered to **Telegram** for manual review and posting. It produces one of four kinds
 of video, chosen per-preset by a `mode:` field:
 
 - **`dance`** — a scroll-stopping dance clip: an attractive woman *and* her environment are generated
@@ -13,6 +13,10 @@ of video, chosen per-preset by a `mode:` field:
 - **`vibe`** — a clean cinematic "digital window" loop: a gorgeous scene (no people, no text) with a
   slow travelling/flythrough camera and a seamless loop. **Mute** (no song needed — add the sound at
   post). Built for replay/save/share.
+- **`mimic`** — a locked character performs the *exact* moves of a driving dance video (true motion
+  transfer via MimicMotion, not a loose imitation). A clean appearance still of the character (PuLID
+  identity lock) is driven by the downloaded dance clip. **Mute** + seamless-looped, **no text**
+  (add captions at post). For copying a specific trending dance onto your character.
 
 Designed to run on a **Raspberry Pi 5** as a thin always-on orchestrator — every heavy stage is a
 cloud API call; the Pi only fires HTTP requests and runs `ffmpeg`.
@@ -35,15 +39,15 @@ prepare_assets → separate_vocals → align_captions → generate_visuals
   → lipsync_render → compose_video → deliver_telegram
 ```
 
-| # | Stage | `dance` | `closeup` | `vibe` |
-|---|-------|---------|-----------|--------|
-| 1 | `prepare_assets`   | fetch + normalize audio | same | **skipped** (mute, no song) |
-| 2 | `separate_vocals`  | stem (only to caption) | clean vocal stem for lip-sync | skipped |
-| 3 | `align_captions`   | auto-transcribe stem → captions | full mix + preset lyrics | skipped |
-| 4 | `generate_visuals` | scene-gen → Kling animate (×N for cuts) | FLUX bg loop + portrait(s) | scene-gen → Kling travelling cam |
-| 5 | `lipsync_render`   | **skipped** | Hedra/OmniHuman (or Kling+resync) → matte | skipped |
-| 6 | `compose_video`    | beat-cut + captions + hook + kinetic + loop | trio composite + captions + kinetic + loop | clean compose + loop, **mute** |
-| 7 | `deliver_telegram` | send mp4 + caption | same | send mute mp4 |
+| # | Stage | `dance` | `closeup` | `vibe` | `mimic` |
+|---|-------|---------|-----------|--------|---------|
+| 1 | `prepare_assets`   | fetch + normalize audio | same | **skipped** (mute, no song) | mute; fetch + normalize the **drive video** |
+| 2 | `separate_vocals`  | stem (only to caption) | clean vocal stem for lip-sync | skipped | skipped |
+| 3 | `align_captions`   | auto-transcribe stem → captions | full mix + preset lyrics | skipped | skipped |
+| 4 | `generate_visuals` | scene-gen → Kling animate (×N for cuts) | FLUX bg loop + portrait(s) | scene-gen → Kling travelling cam | appearance still (PuLID) → MimicMotion transfer |
+| 5 | `lipsync_render`   | **skipped** | Hedra/OmniHuman (or Kling+resync) → matte | skipped | skipped |
+| 6 | `compose_video`    | beat-cut + captions + hook + kinetic + loop | trio composite + captions + kinetic + loop | clean compose + loop, **mute** | clean compose + loop, **mute, no text** |
+| 7 | `deliver_telegram` | send mp4 + caption | same | send mute mp4 | send mute mp4 |
 
 ### Viral levers (dance mode, all toggleable in settings)
 
@@ -94,6 +98,14 @@ backup:    { image: presets/characters/chrome_man.png }
 # vibe — cinematic no-people loop; mute, so no song needed
 mode: vibe
 theme: "Hong Kong harbour at twilight, neon skyline reflected in rippling water"
+```
+
+```yaml
+# mimic — a locked character copies a driving dance; mute, so no song needed
+mode: mimic
+drive: { source: "https://vt.tiktok.com/…" }   # the dance to copy
+character: { image: presets/characters/neon_girl.png }
+theme: "a neon cyberpunk club, plain uncluttered backdrop"
 ```
 
 ---
