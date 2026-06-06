@@ -25,13 +25,14 @@ from compose.ffmpeg import (
     composite_window,
     crop_window,
     loop_seamless,
+    normalize_video,
     probe_dimensions,
     probe_duration,
 )
 from core.audio import clip_audio, normalize_loudness, parse_timerange
 from core.beat import detect_beat_period
 from core.context import JobContext
-from core.fetch import fetch_audio
+from core.fetch import fetch_audio, fetch_video
 from core.storage import artifact_path
 from delivery.telegram import send_video
 from jobs.models import Artifact, Job
@@ -41,6 +42,7 @@ from providers.base import (
     get_caption_aligner,
     get_lip_syncer,
     get_matter,
+    get_motion_transfer,
     get_portrait_generator,
     get_scene_generator,
     get_video_lip_syncer,
@@ -117,6 +119,29 @@ def prepare_assets(job_id: str) -> dict:
         return JobContext(
             job_id=job_id, theme=job.theme, mode=job.mode, hook=(job.hook or None),
             character_ref=job.character_ref, enable_captions=False, song_path=""
+        ).to_dict()
+
+    # Mimic is MUTE like vibe (no song), but it must acquire the DRIVING video:
+    # download (or copy a local path), then normalize to a muted 9:16 clip that
+    # MimicMotion will transfer onto the locked character.
+    if job.mode == "mimic":
+        raw = fetch_video(job.drive_source, artifact_path(job_id, "drive_raw.mp4"))
+        _record(job_id, "prepare_assets", "drive_raw", raw)
+        drive = normalize_video(
+            raw,
+            artifact_path(job_id, "drive.mp4"),
+            width=settings.DRIVE_WIDTH,
+            height=settings.DRIVE_HEIGHT,
+            max_seconds=settings.DRIVE_MAX_SECONDS,
+        )
+        _record(job_id, "prepare_assets", "drive", drive)
+        return JobContext(
+            job_id=job_id, theme=job.theme, mode=job.mode, hook=(job.hook or None),
+            style=(job.style or None), framing=job.framing,
+            character_ref=job.character_ref,
+            character_image=(job.character_image or None),
+            drive_source=job.drive_source, drive_video_path=str(drive),
+            enable_captions=False, song_path="",
         ).to_dict()
 
     # If the preset gave a url/query instead of a local file, fetch it now.
