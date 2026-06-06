@@ -265,6 +265,23 @@ def generate_visuals(payload: dict) -> dict:
     ctx = JobContext.from_dict(payload)
     _advance(ctx.job_id, "generate_visuals")
 
+    if ctx.mode == "mimic":
+        # (1) appearance still: the locked character standing on a clean backdrop
+        # (PuLID locks identity from character_image). (2) motion transfer: the
+        # character performs the driving dance. Output reuses scene_clip_path.
+        style = ctx.style or settings.DANCE_CHARACTER_STYLE
+        prompt = settings.MIMIC_SCENE_PROMPT_TEMPLATE.format(theme=ctx.theme, style=style)
+        still = artifact_path(ctx.job_id, "appearance_still.png")
+        reference = Path(ctx.character_image) if ctx.character_image else None
+        get_scene_generator().generate(prompt, still, reference_image=reference)
+        _record(ctx.job_id, "generate_visuals", "appearance_still", still)
+        clip = artifact_path(ctx.job_id, "mimic_motion.mp4")
+        get_motion_transfer().transfer(still, _require_path(ctx.drive_video_path), clip)
+        ctx.scene_clip_path = str(clip)
+        ctx.scene_clip_paths = [str(clip)]
+        _record(ctx.job_id, "generate_visuals", "scene", clip)
+        return ctx.to_dict()
+
     if ctx.mode in ("dance", "vibe"):
         # Integrated scene still(s) → animate with Kling. No greenscreen, no
         # portrait, no separate bg. dance = a woman dancing (N scenes for cuts);
@@ -449,8 +466,8 @@ def compose_video(payload: dict) -> dict:
         hook_captions = build_hook_ass(ctx.hook, artifact_path(ctx.job_id, "hook.ass"))
         _record(ctx.job_id, "compose_video", "hook", hook_captions)
     backup_clip = Path(ctx.backup_lipsync_path) if ctx.backup_lipsync_path else None
-    # Vibe is mute (no song), so there's no audio to mux or beat-detect.
-    audio = None if ctx.mode == "vibe" else _require_path(ctx.song_normalized_path)
+    # Vibe and mimic are mute (no song), so there's no audio to mux or beat-detect.
+    audio = None if ctx.mode in ("vibe", "mimic") else _require_path(ctx.song_normalized_path)
     # Detect the beat grid so compose can pulse the zoom on every beat. Disabled
     # (or any failure) leaves beat_period at 0, which compose treats as off.
     if settings.KINETIC_ENABLED and audio is not None:
@@ -478,6 +495,16 @@ def compose_video(payload: dict) -> dict:
             audio=audio,
             captions=None,
             hook_captions=None,
+            out_path=compose_target,
+        )
+    elif ctx.mode == "mimic":
+        # Motion-transfer clip → mute scene compose + optional hook + seamless
+        # loop. No captions, no kinetic (mute → no beat grid).
+        compose_scene(
+            scene_clip=_require_path(ctx.scene_clip_path),
+            audio=None,
+            captions=None,
+            hook_captions=hook_captions,
             out_path=compose_target,
         )
     elif ctx.mode == "dance":
