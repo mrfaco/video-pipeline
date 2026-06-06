@@ -55,3 +55,8 @@ htmlcov/
 
 # Docker
 docker-compose.override.yml
+
+# Character profiles + bundled media assets — kept LOCAL ONLY (scrubbed from
+# history; the public repo must not carry likenesses / sample media).
+presets/characters/
+fixtures/
