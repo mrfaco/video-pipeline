@@ -469,9 +469,13 @@ def compose_final(
             f"[t2][boss]overlay=x=(W-w)/2:y=H-h-10[comp]"
         )
     else:
+        # Solo singer: scale to fit, then BOTTOM-anchor (not center). A chest-up
+        # portrait centered leaves its bottom edge floating mid-frame as a hard
+        # crop line; anchoring the bottom to the frame edge reads as natural
+        # chest-up framing of someone standing in the scene.
         fg = (
             f"[1:v]{key}scale={width}:{height}:force_original_aspect_ratio=decrease[fg];"
-            f"[bg][fg]overlay=(W-w)/2:(H-h)/2[comp]"
+            f"[bg][fg]overlay=(W-w)/2:H-h[comp]"
         )
 
     filter_complex = f"{bg_chain};{fg}"
