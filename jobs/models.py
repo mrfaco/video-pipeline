@@ -62,6 +62,9 @@ class Job(models.Model):
     # before rendering — keeps lip-sync render time/cost down. Applied in
     # prepare_assets after the song is on disk.
     song_clip = models.CharField(max_length=40, blank=True)
+    # mimic mode: the driving dance video to copy (a URL or a local path).
+    # Resolved + normalized into the job dir by prepare_assets.
+    drive_source = models.CharField(max_length=1000, blank=True)
 
     # --- Lifecycle ---
     status = models.CharField(
