@@ -1,0 +1,13 @@
+# Neon girl — ELEGANT EVENING GLAM. Face locked via PuLID (neon_girl.png),
+# outfit driven by style:. Drop a trending song into song.source and run.
+mode: dance
+
+song:
+  source: "REPLACE_WITH_TIKTOK_URL"
+
+character:
+  image: presets/characters/neon_girl.png
+
+style: "an elegant sleek floor-length black satin evening gown, sophisticated red-carpet glam makeup, subtle jewelry, classy and upscale, sleek high ponytail"
+
+theme: "a luxurious modern penthouse at night, floor-to-ceiling windows with a glittering city skyline, warm ambient lighting"

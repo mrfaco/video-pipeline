@@ -1,0 +1,13 @@
+# Neon girl — Y2K DENIM throwback. Face locked via PuLID (neon_girl.png),
+# outfit driven by style:. Drop a trending song into song.source and run.
+mode: dance
+
+song:
+  source: "REPLACE_WITH_TIKTOK_URL"
+
+character:
+  image: presets/characters/neon_girl.png
+
+style: "low-rise blue denim jeans and a fitted white cropped baby tee, 2000s Y2K throwback styling, small trendy accessories, sleek high ponytail"
+
+theme: "a colorful Y2K-styled space, retro 2000s shopping mall aesthetic, vibrant pastel and chrome accents, playful lighting"

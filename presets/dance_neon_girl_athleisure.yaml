@@ -1,0 +1,13 @@
+# Neon girl — ATHLEISURE / gym set. Face locked via PuLID (neon_girl.png),
+# outfit driven by style:. Drop a trending song into song.source and run.
+mode: dance
+
+song:
+  source: "REPLACE_WITH_TIKTOK_URL"
+
+character:
+  image: presets/characters/neon_girl.png
+
+style: "a fitted matching activewear set of a sports bra and high-waisted leggings, sporty athleisure style, sleek high ponytail, fresh sporty makeup"
+
+theme: "a bright modern fitness studio, large mirrors and soft daylight, clean minimal aesthetic"
