@@ -28,6 +28,11 @@ class AudioFetchError(RuntimeError):
     """yt-dlp could not resolve or download the requested audio."""
 
 
+class VideoFetchError(RuntimeError):
+    """yt-dlp could not resolve/download the requested video, or a local
+    driving-video path does not exist."""
+
+
 def _is_url(source: str) -> bool:
     return source.startswith(("http://", "https://"))
 
@@ -73,4 +78,54 @@ def fetch_audio(source: str, out_path: Path) -> Path:
     produced = out_path.with_suffix(".mp3")
     if not produced.exists():
         raise AudioFetchError(f"yt-dlp reported success but {produced} is missing.")
+    return produced
+
+
+def fetch_video(source: str, out_path: Path) -> Path:
+    """Resolve a driving video to ``out_path`` (an .mp4), returning the file.
+
+    A URL is downloaded with yt-dlp (best mp4, audio included — it is stripped
+    later in normalize_video). A non-URL is treated as a local file path and
+    copied through (used by the offline tests and any pre-downloaded clip).
+    """
+    if not source:
+        raise VideoFetchError("Empty drive source; nothing to fetch.")
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if not _is_url(source):
+        local = Path(source)
+        if not local.is_file():
+            raise VideoFetchError(f"Drive video not found: {local}")
+        import shutil  # noqa: PLC0415
+
+        shutil.copyfile(local, out_path)
+        return out_path
+
+    template = str(out_path.with_suffix("")) + ".%(ext)s"
+    cmd = [
+        sys.executable,
+        "-m",
+        "yt_dlp",
+        "--no-playlist",
+        "-f",
+        "bv*+ba/b",
+        "--merge-output-format",
+        "mp4",
+        "--output",
+        template,
+        source,
+    ]
+    for attempt in range(_FETCH_RETRIES):
+        try:
+            subprocess.run(cmd, check=True, capture_output=True)
+            break
+        except subprocess.CalledProcessError as exc:  # allow: suppress-exception
+            if attempt == _FETCH_RETRIES - 1:
+                stderr = exc.stderr.decode("utf-8", "replace") if exc.stderr else ""
+                raise VideoFetchError(f"yt-dlp failed for {source!r}: {stderr[-500:]}") from exc
+            time.sleep(_FETCH_RETRY_WAIT_S)
+
+    produced = out_path.with_suffix(".mp4")
+    if not produced.exists():
+        raise VideoFetchError(f"yt-dlp reported success but {produced} is missing.")
     return produced
