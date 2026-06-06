@@ -15,7 +15,7 @@ from __future__ import annotations
 from pydantic import BaseModel, ConfigDict
 
 # Bump when the shape of JobContext changes (AGENTS.md §11 schema versioning).
-SCHEMA_VERSION = 10
+SCHEMA_VERSION = 11
 
 
 class JobContext(BaseModel):
@@ -52,6 +52,9 @@ class JobContext(BaseModel):
     # dance mode scene framing: "full" (full-body, default) or "close" (an
     # intimate chest-up portrait — the "cool girl" posing format).
     framing: str = "full"
+    # mimic mode: the driving dance video to copy. A URL (auto-downloaded) or a
+    # local path. Resolved to drive_video_path by prepare_assets.
+    drive_source: str = ""
     # A ready-made greenscreen portrait to use as-is (preset ``character.image``),
     # skipping portrait generation. None means generate from ``character_ref``.
     character_image: str | None = None
@@ -76,6 +79,8 @@ class JobContext(BaseModel):
     # "no clip — use the whole song's words").
     clip_start_s: float = 0.0
     clip_end_s: float = 0.0
+    # mimic mode: the downloaded + normalized (9:16, muted) driving video.
+    drive_video_path: str | None = None
 
     # --- separate_vocals (Demucs) ---
     vocal_stem_path: str | None = None

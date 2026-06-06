@@ -15,3 +15,14 @@ def test_mode_defaults_to_dance():
 def test_mode_roundtrips():
     ctx = JobContext(job_id="j", theme="t", character_ref="c", song_path="s", mode="closeup")
     assert JobContext.from_dict(ctx.to_dict()).mode == "closeup"
+
+
+def test_context_carries_drive_fields():
+    ctx = JobContext(
+        job_id="j", theme="t", character_ref="", song_path="",
+        mode="mimic", drive_source="https://x/y", drive_video_path="/d/drive.mp4",
+    )
+    round_tripped = JobContext.from_dict(ctx.to_dict())
+    assert round_tripped.drive_source == "https://x/y"
+    assert round_tripped.drive_video_path == "/d/drive.mp4"
+    assert round_tripped.schema_version == 11
