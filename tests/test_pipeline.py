@@ -544,3 +544,19 @@ def test_load_preset_mimic_forbids_song(tmp_path):
     )
     with pytest.raises(PresetError):
         load_preset(str(p))
+
+
+@pytest.mark.django_db
+def test_create_job_mimic_stores_drive_source(tmp_path):
+    p = tmp_path / "mimic.yaml"
+    p.write_text(
+        "mode: mimic\ntheme: a club\n"
+        "drive:\n  source: https://example.com/dance\n"
+        "character:\n  image: fixtures/character_portrait.png\n",
+        encoding="utf-8",
+    )
+    with override_settings(MEDIA_ROOT=tmp_path):
+        job = create_job_from_preset(str(p))
+    assert job.mode == "mimic"
+    assert job.drive_source == "https://example.com/dance"
+    assert job.character_image  # locked identity copied into the job dir

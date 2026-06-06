@@ -185,6 +185,7 @@ def create_job_from_preset(preset_path: str | Path) -> Job:
         backup_character_ref=preset["backup_character_ref"],
         song_source=preset["audio_source"],
         song_clip=preset["clip"],
+        drive_source=preset["drive_source"],
     )
     # Copy ready-made character images into the job dir so the run is
     # self-contained and immune to the source moving.
