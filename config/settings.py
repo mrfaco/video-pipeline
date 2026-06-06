@@ -347,17 +347,20 @@ MIMICMOTION_MODEL = env(
 # looks soft once compose upscales it to 1080x1920, so we render at the max.
 MIMICMOTION_RESOLUTION = env.int("MIMICMOTION_RESOLUTION", default=1024)
 MIMICMOTION_FPS = env.int("MIMICMOTION_FPS", default=24)
-# The appearance still: a clean, full-body, neutral standing pose on a plain
-# backdrop tracks far better in MimicMotion than a busy dance scene. {theme} sets
-# the setting/backdrop; {style} the woman's look (same safety clause as dance).
+# The appearance still: a clean, full-body, neutral standing pose. CRITICAL for
+# quality — MimicMotion preserves the still's background + lighting into every
+# frame, so a BRIGHT, well-lit, in-focus scene renders far crisper than a dark
+# or busy one (dark + high-contrast neon maximizes the model's softness and
+# compression noise). {theme} sets the setting; {style} the woman's look.
 MIMIC_SCENE_PROMPT_TEMPLATE = env(
     "MIMIC_SCENE_PROMPT_TEMPLATE",
     default=(
         "a full-body photo of a stunning attractive young woman standing in a "
-        "relaxed neutral pose facing the camera, {style}, in {theme}, plain "
-        "uncluttered background, head to toe fully in frame, even soft lighting, "
-        "photorealistic, highly detailed, vertical 9:16 composition, tasteful and "
-        "never explicit — no nudity, no lingerie, no swimwear"
+        "relaxed neutral pose facing the camera, {style}, in {theme}, bright and "
+        "evenly lit, clean and uncluttered, in sharp crisp focus, well-exposed, "
+        "head to toe fully in frame, photorealistic, highly detailed, vertical "
+        "9:16 composition, tasteful and never explicit — no nudity, no lingerie, "
+        "no swimwear"
     ),
 )
 # Driving-video normalization: scale-to-fill 9:16 at these dims, strip audio,
