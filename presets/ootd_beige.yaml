@@ -1,0 +1,15 @@
+# OOTD / playful-posing format (NOT dancing) — matches a viral outfit-of-the-day
+# vibe: casual-chic look, low-angle phone shot, posing for the camera against a
+# sunny beige wall. Run with a posing motion override + captions off (clean):
+#
+#   PROVIDER_MODE=real ENABLE_CAPTIONS=False \
+#   DANCE_MOTION_PROMPT="<posing prompt>" \
+#   ./venv/bin/python manage.py run_job presets/ootd_beige.yaml --sync
+mode: dance
+
+song:
+  source: "https://www.tiktok.com/@efratelmalich/video/7633006091575627024"
+
+style: "an outfit-of-the-day look — a short sleek dark bob with a middle part, small rectangular tortoiseshell sunglasses, a fitted white ribbed tank top, a tan corduroy mini skirt, layered gold jewelry (hoop earrings, cuff bracelet, rings, a necklace), a brown leather tote bag on the shoulder, white socks and green retro sneakers, casual and chic"
+
+theme: "a sunny outdoor spot against a beige stucco and stone-block wall beside a doorway, bright Mediterranean daylight, casual streetwear photoshoot vibe"
