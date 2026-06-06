@@ -88,6 +88,13 @@ class FakeAnimator:
         return _copy_fixture("character_lipsync.mp4", out_path)
 
 
+class FakeMotionTransfer:
+    """Returns a bundled clip as the 'motion-transferred' dance (no network)."""
+
+    def transfer(self, appearance_image: Path, motion_video: Path, out_path: Path) -> Path:
+        return _copy_fixture("background_loop.mp4", out_path)
+
+
 class FakeVideoLipSyncer:
     """Passthrough: returns the moving clip unchanged (no real lip-sync)."""
 

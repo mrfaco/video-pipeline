@@ -114,6 +114,14 @@ class Animator(Protocol):
 
 
 @runtime_checkable
+class MotionTransfer(Protocol):
+    def transfer(self, appearance_image: Path, motion_video: Path, out_path: Path) -> Path:
+        """Motion transfer (MimicMotion): the character in ``appearance_image``
+        performs the exact moves of ``motion_video``. Returns the clip path."""
+        ...
+
+
+@runtime_checkable
 class VideoLipSyncer(Protocol):
     def sync_video(self, video_path: Path, audio_path: Path, out_path: Path) -> Path:
         """Map a mouth onto an already-moving video, synced to ``audio_path``."""
@@ -192,6 +200,16 @@ def get_animator() -> Animator:
     from providers.motion import RealKlingAnimator  # noqa: PLC0415
 
     return RealKlingAnimator()
+
+
+def get_motion_transfer() -> MotionTransfer:
+    if _is_fake():
+        from providers.fakes import FakeMotionTransfer  # noqa: PLC0415
+
+        return FakeMotionTransfer()
+    from providers.motion_transfer import RealMimicMotion  # noqa: PLC0415
+
+    return RealMimicMotion()
 
 
 def get_video_lip_syncer() -> VideoLipSyncer:

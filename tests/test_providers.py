@@ -180,3 +180,32 @@ def test_get_lip_syncer_magic_hour() -> None:
 def test_get_lip_syncer_unknown_raises() -> None:
     with pytest.raises(ProviderConfigError):
         base.get_lip_syncer()
+
+
+def test_fake_motion_transfer_copies_fixture(tmp_path):
+    from providers.fakes import FakeMotionTransfer
+
+    out = tmp_path / "motion.mp4"
+    result = FakeMotionTransfer().transfer(
+        tmp_path / "appearance.png", tmp_path / "drive.mp4", out
+    )
+    assert result == out
+    assert out.read_bytes() == _fixture_bytes("background_loop.mp4")
+
+
+def test_get_motion_transfer_selects_backend():
+    from providers.fakes import FakeMotionTransfer
+    from providers.motion_transfer import RealMimicMotion
+
+    with override_settings(PROVIDER_MODE="fake"):
+        assert isinstance(base.get_motion_transfer(), FakeMotionTransfer)
+    with override_settings(PROVIDER_MODE="real", REPLICATE_API_TOKEN="tok"):
+        assert isinstance(base.get_motion_transfer(), RealMimicMotion)
+
+
+def test_real_mimic_motion_requires_token():
+    from providers.motion_transfer import RealMimicMotion
+
+    with override_settings(REPLICATE_API_TOKEN=""):
+        with pytest.raises(ProviderConfigError):
+            RealMimicMotion()
