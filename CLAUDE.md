@@ -34,11 +34,14 @@ A preset's `mode:` field picks one of four pipelines (default `dance`), carried 
 - **`mimic`** — true **motion transfer**: a locked character performs the *exact* moves of a driving
   dance video (not Kling's loose approximation). `prepare_assets` downloads + normalizes the
   `drive:` clip (9:16, muted); `generate_visuals` scene-gens a clean appearance still (PuLID locks
-  identity from `character.image`) then drives it through `MotionTransfer` (`providers/motion_transfer.py`
-  → MimicMotion on Replicate, **explicit prediction polling** — the blocking `client.run()` times
-  out on cold start). **Mute** + seamless-looped, **no text at all** (no captions, no hook — the
-  operator adds captions at post) and no kinetic. Requires `drive` + `character`, forbids `song`.
-  Reserve for copying a *specific* trending dance.
+  identity from `character.image`) then drives it through `MotionTransfer` (`providers/motion_transfer.py`).
+  Backend via `MOTION_TRANSFER_PROVIDER`: **`wan_animate`** (default — Alibaba Wan-2.2 Animate on fal;
+  coherent full-body dance) or `mimicmotion` (Replicate fallback — **melts legs + busy backgrounds on
+  energetic dance**, kept only for comparison; uses explicit prediction polling since the blocking
+  `client.run()` times out on cold start). **Mute** + seamless-looped, **no text at all** (no
+  captions, no hook — the operator adds captions at post) and no kinetic. Requires `drive` +
+  `character`, forbids `song`. The appearance scene should be **bright + clean** (a busy/dark scene
+  degrades both backends). Reserve for copying a *specific* trending dance.
 
 ## Architecture in one breath
 

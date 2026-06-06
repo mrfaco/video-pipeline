@@ -1,7 +1,15 @@
 # Mimic Mode — Design
 
-**Status:** approved (brainstorm 2026-06-06)
+**Status:** approved (brainstorm 2026-06-06); shipped
 **Author:** pipeline work session
+
+> **Update (2026-06-06, post-ship):** MimicMotion (the original backend below) melts legs and busy
+> backgrounds on energetic full-body dance. The motion-transfer layer was made pluggable via
+> `MOTION_TRANSFER_PROVIDER` and the default is now **Wan-2.2 Animate on fal**
+> (`fal-ai/wan/v2.2-14b/animate/move`, `RealWanAnimate`), which is purpose-built for character dance
+> and far more coherent. MimicMotion is kept as the `mimicmotion` fallback. Also learned: the
+> appearance scene must be **bright + clean** (dark/cluttered scenes degrade quality), and mimic
+> output is **clean — no captions, no hook** (operator adds captions at post).
 
 ## What this adds
 
