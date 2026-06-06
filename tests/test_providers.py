@@ -195,12 +195,24 @@ def test_fake_motion_transfer_copies_fixture(tmp_path):
 
 def test_get_motion_transfer_selects_backend():
     from providers.fakes import FakeMotionTransfer
-    from providers.motion_transfer import RealMimicMotion
+    from providers.motion_transfer import RealMimicMotion, RealWanAnimate
 
     with override_settings(PROVIDER_MODE="fake"):
         assert isinstance(base.get_motion_transfer(), FakeMotionTransfer)
-    with override_settings(PROVIDER_MODE="real", REPLICATE_API_TOKEN="tok"):
+    with override_settings(
+        PROVIDER_MODE="real", MOTION_TRANSFER_PROVIDER="wan_animate", FAL_KEY="k"
+    ):
+        assert isinstance(base.get_motion_transfer(), RealWanAnimate)
+    with override_settings(
+        PROVIDER_MODE="real", MOTION_TRANSFER_PROVIDER="mimicmotion", REPLICATE_API_TOKEN="tok"
+    ):
         assert isinstance(base.get_motion_transfer(), RealMimicMotion)
+
+
+def test_get_motion_transfer_rejects_unknown_provider():
+    with override_settings(PROVIDER_MODE="real", MOTION_TRANSFER_PROVIDER="bogus"):
+        with pytest.raises(ProviderConfigError):
+            base.get_motion_transfer()
 
 
 def test_real_mimic_motion_requires_token():
@@ -209,3 +221,11 @@ def test_real_mimic_motion_requires_token():
     with override_settings(REPLICATE_API_TOKEN=""):
         with pytest.raises(ProviderConfigError):
             RealMimicMotion()
+
+
+def test_real_wan_animate_requires_fal_key():
+    from providers.motion_transfer import RealWanAnimate
+
+    with override_settings(FAL_KEY=""):
+        with pytest.raises(ProviderConfigError):
+            RealWanAnimate()

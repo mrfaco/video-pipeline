@@ -207,9 +207,18 @@ def get_motion_transfer() -> MotionTransfer:
         from providers.fakes import FakeMotionTransfer  # noqa: PLC0415
 
         return FakeMotionTransfer()
-    from providers.motion_transfer import RealMimicMotion  # noqa: PLC0415
+    provider = settings.MOTION_TRANSFER_PROVIDER
+    if provider == "wan_animate":
+        from providers.motion_transfer import RealWanAnimate  # noqa: PLC0415
 
-    return RealMimicMotion()
+        return RealWanAnimate()
+    if provider == "mimicmotion":
+        from providers.motion_transfer import RealMimicMotion  # noqa: PLC0415
+
+        return RealMimicMotion()
+    raise ProviderConfigError(
+        f"Unknown MOTION_TRANSFER_PROVIDER {provider!r}; expected wan_animate | mimicmotion."
+    )
 
 
 def get_video_lip_syncer() -> VideoLipSyncer:

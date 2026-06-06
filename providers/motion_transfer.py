@@ -1,11 +1,21 @@
-"""Motion transfer via MimicMotion on Replicate (mimic mode).
+"""Motion transfer for mimic mode: a character image + a driving dance video in,
+a clip of the character performing that dance out.
 
-The character's appearance still + a driving dance video go in; a clip of the
-character performing that dance comes out. MimicMotion renders for minutes, so
-we create the prediction and poll it explicitly rather than using the blocking
-``client.run()`` (which hits an httpx ReadTimeout on cold start). The
-``replicate`` SDK is imported inside the method (real-mode only); a missing
-token raises at construction; a failed/empty prediction raises (no fallback).
+Two backends (selected by ``settings.MOTION_TRANSFER_PROVIDER`` via the
+``get_motion_transfer`` factory):
+
+* ``RealWanAnimate`` — Alibaba Wan-2.2 Animate on fal (the default). Purpose-built
+  for full-body character dance; coherent legs + backgrounds where MimicMotion
+  melts. Uses ``fal_client.subscribe`` (the SDK handles the queue/polling), same
+  as the Kling animator.
+* ``RealMimicMotion`` — zsxkib/mimic-motion on Replicate (the original). Soft and
+  warps on fast full-body motion; kept as a fallback. Renders for many minutes,
+  so we create the prediction and poll it explicitly rather than using the
+  blocking ``client.run()`` (which hits an httpx ReadTimeout on cold start).
+
+Heavy SDKs (``replicate``, ``fal_client``) are imported at the callsite
+(real-mode only); a missing key raises at construction; a failed/empty result
+raises (no silent fallback).
 """
 
 from __future__ import annotations
@@ -35,6 +45,41 @@ def _download(url: str, out_path: Path) -> Path:
             for chunk in response.iter_bytes():
                 fh.write(chunk)
     return out_path
+
+
+class RealWanAnimate:
+    """Motion transfer via Alibaba Wan-2.2 Animate (animation/"move" mode) on fal."""
+
+    def __init__(self) -> None:
+        if not settings.FAL_KEY:
+            raise ProviderConfigError("FAL_KEY is empty; required for RealWanAnimate.")
+        self._model = settings.WAN_ANIMATE_MODEL
+        self._resolution = settings.WAN_ANIMATE_RESOLUTION
+        self._quality = settings.WAN_ANIMATE_QUALITY
+        self._steps = settings.WAN_ANIMATE_STEPS
+
+    def transfer(self, appearance_image: Path, motion_video: Path, out_path: Path) -> Path:
+        import fal_client  # noqa: PLC0415  (heavy optional SDK, real-mode only)
+
+        image_url = fal_client.upload_file(Path(appearance_image))
+        video_url = fal_client.upload_file(Path(motion_video))
+        result = fal_client.subscribe(
+            self._model,
+            arguments={
+                "image_url": image_url,
+                "video_url": video_url,
+                "resolution": self._resolution,
+                "video_quality": self._quality,
+                "num_inference_steps": self._steps,
+            },
+        )
+        if not isinstance(result, dict):
+            raise ProviderConfigError(f"Wan-Animate result is not a dict: {result!r}")
+        video = result.get("video")
+        url = video.get("url") if isinstance(video, dict) else video
+        if not isinstance(url, str) or not url:
+            raise ProviderConfigError(f"Wan-Animate result missing a video URL: {result!r}")
+        return _download(url, out_path)
 
 
 class RealMimicMotion:
