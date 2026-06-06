@@ -39,6 +39,8 @@ class Job(models.Model):
     style = models.TextField(blank=True)
     # Optional dance motion prompt override (e.g. an OOTD walk instead of dancing).
     motion = models.TextField(blank=True)
+    # Scene framing: "full" (full-body) or "close" (chest-up portrait / cool-girl).
+    framing = models.CharField(max_length=16, default="full")
     # Per-preset captions toggle (e.g. off for the clean OOTD/vibe aesthetic).
     captions_enabled = models.BooleanField(default=True)
     theme = models.TextField()

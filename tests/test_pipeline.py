@@ -325,6 +325,37 @@ def test_pipeline_vibe_mode(tmp_path):
 
 
 @pytest.mark.django_db
+def test_pipeline_dance_close_framing(tmp_path):
+    # framing: close (the cool-girl format) parses, validates, and delivers.
+    p = tmp_path / "cg.yaml"
+    p.write_text(
+        "song:\n  audio: fixtures/song.mp3\ntheme: a bedroom\nmode: dance\n"
+        'framing: close\ncaptions: false\nhook: "cool girls don\'t text back"\n',
+        encoding="utf-8",
+    )
+    with override_settings(
+        MEDIA_ROOT=tmp_path, PROVIDER_MODE="fake", TELEGRAM_BOT_TOKEN="", TELEGRAM_CHAT_ID=""
+    ):
+        job = create_job_from_preset(str(p))
+        assert job.framing == "close"
+        run_job(job, eager=True)
+        job.refresh_from_db()
+        assert job.status == Job.Status.DELIVERED, job.error_detail
+        assert _ffprobe_has_video(Path(job.output_path))
+        assert "hook" in set(Artifact.objects.filter(job=job).values_list("kind", flat=True))
+
+
+def test_load_preset_rejects_bad_framing(tmp_path):
+    p = tmp_path / "bad.yaml"
+    p.write_text(
+        "song:\n  audio: fixtures/song.mp3\ntheme: t\nmode: dance\nframing: sideways\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(PresetError):
+        load_preset(str(p))
+
+
+@pytest.mark.django_db
 def test_pipeline_dance_motion_and_captions_off(tmp_path):
     # A preset motion override + captions:false → delivers with no captions.
     p = tmp_path / "ootd.yaml"

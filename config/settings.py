@@ -200,6 +200,18 @@ SCENE_PROMPT_TEMPLATE = env(
         "photorealistic, highly detailed, vertical 9:16 composition, scroll-stopping"
     ),
 )
+# Used when a preset sets `framing: close` — an intimate chest-up portrait (the
+# "cool girl" / e-girl posing format) instead of the full-body dance shot.
+SCENE_PROMPT_CLOSE = env(
+    "SCENE_PROMPT_CLOSE",
+    default=(
+        "a moody cinematic close-up portrait of a stunning attractive young woman, "
+        "{style}, in {theme}, framed from the chest up, a stylish modeling pose "
+        "looking toward the camera, soft moody lighting, photorealistic, highly "
+        "detailed, vertical 9:16 composition, scroll-stopping, tasteful and never "
+        "explicit — no nudity, no lingerie, no swimwear"
+    ),
+)
 DANCE_CHARACTER_STYLE = env(
     "DANCE_CHARACTER_STYLE",
     default=(

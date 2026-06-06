@@ -157,6 +157,7 @@ def prepare_assets(job_id: str) -> dict:
         hook=(job.hook or None),
         style=(job.style or None),
         motion=(job.motion or None),
+        framing=job.framing,
         character_ref=job.character_ref,
         lyrics=(job.lyrics or None),
         # Closeup needs known lyrics to caption; dance auto-transcribes the song
@@ -251,7 +252,12 @@ def generate_visuals(payload: dict) -> dict:
             shots = [""]
         else:
             style = ctx.style or settings.DANCE_CHARACTER_STYLE
-            base_prompt = settings.SCENE_PROMPT_TEMPLATE.format(theme=ctx.theme, style=style)
+            template = (
+                settings.SCENE_PROMPT_CLOSE
+                if ctx.framing == "close"
+                else settings.SCENE_PROMPT_TEMPLATE
+            )
+            base_prompt = template.format(theme=ctx.theme, style=style)
             motion_prompt = ctx.motion or settings.DANCE_MOTION_PROMPT
             cfg = settings.DANCE_KLING_CFG
             n = max(1, settings.DANCE_SCENE_CUTS)

@@ -1,0 +1,18 @@
+# "Cool girl" / e-girl close-up posing format (viral). Intimate chest-up portrait,
+# slow modeling poses + expression shifts (Kling's sweet spot), a top text hook.
+# Swap the `hook:` line for variants ("cool girls don't text back", etc.) and
+# song.source for the sound. captions off, framing close.
+mode: dance
+framing: close
+captions: false
+
+hook: "cool girls don't have boyfriends"
+
+song:
+  source: "REPLACE_WITH_TIKTOK_URL"
+
+style: "dark brown hair sharply parted in the middle and pulled into a sleek low bun, e-girl 'cold girl' makeup with soft rosy-pink blush across the cheekbones and nose bridge, defined brows, full lips, a fitted black top with delicate black lace trim, a fine gold chain necklace with a small pendant, a few rings"
+
+motion: "slow fluid modeling poses in an intimate close-up — she starts with her head tilted down and to the side looking away with a neutral pouty expression, then smoothly lifts her head and looks directly into the camera, subtly adjusts her posture, then brings her hand up and gently presses a finger to her lower lip with a brooding stylized expression, then turns her head away, slow graceful movement, brooding cool-girl energy, NOT dancing"
+
+theme: "a dimly lit cozy bedroom with a white louvered closet door, soft warm lighting"

@@ -79,6 +79,10 @@ def load_preset(path: str | Path) -> dict:
             f"{preset_path}: mode must be 'dance', 'closeup', or 'vibe', got {mode!r}."
         )
 
+    framing = str(data.get("framing", "full")).strip().lower()
+    if framing not in {"full", "close"}:
+        raise PresetError(f"{preset_path}: framing must be 'full' or 'close', got {framing!r}.")
+
     # Dance mode generates the girl inside the scene, so a character block is
     # optional. Closeup mode lip-syncs a specific portrait, so it's required.
     if mode == "closeup":
@@ -136,6 +140,7 @@ def load_preset(path: str | Path) -> dict:
         "hook": (str(data.get("hook")).strip() if data.get("hook") else ""),
         "style": (str(data.get("style")).strip() if data.get("style") else ""),
         "motion": (str(data.get("motion")).strip() if data.get("motion") else ""),
+        "framing": framing,
         "captions": bool(data.get("captions", True)),
         "lyrics": (song.get("lyrics") or "").strip(),
         "theme": str(theme).strip(),
@@ -161,6 +166,7 @@ def create_job_from_preset(preset_path: str | Path) -> Job:
         hook=preset["hook"],
         style=preset["style"],
         motion=preset["motion"],
+        framing=preset["framing"],
         captions_enabled=preset["captions"],
         lyrics=preset["lyrics"],
         character_ref=preset["character_ref"],
