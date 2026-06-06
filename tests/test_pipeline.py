@@ -560,3 +560,39 @@ def test_create_job_mimic_stores_drive_source(tmp_path):
     assert job.mode == "mimic"
     assert job.drive_source == "https://example.com/dance"
     assert job.character_image  # locked identity copied into the job dir
+
+
+@pytest.mark.django_db
+def test_pipeline_mimic_mode(tmp_path):
+    # Mimic: drive video (local fixture passthrough) -> normalize -> appearance
+    # still (fake scene-gen) -> fake motion transfer -> mute looped compose.
+    p = tmp_path / "mimic.yaml"
+    p.write_text(
+        "mode: mimic\ntheme: a neon club\n"
+        "drive:\n  source: fixtures/background_loop.mp4\n"
+        "character:\n  image: fixtures/character_portrait.png\n"
+        'hook: "she ate"\n',
+        encoding="utf-8",
+    )
+    with override_settings(
+        MEDIA_ROOT=tmp_path, PROVIDER_MODE="fake", TELEGRAM_BOT_TOKEN="", TELEGRAM_CHAT_ID=""
+    ):
+        job = create_job_from_preset(str(p))
+        assert job.mode == "mimic"
+        run_job(job, eager=True)
+        job.refresh_from_db()
+        assert job.status == Job.Status.DELIVERED, job.error_detail
+        output = Path(job.output_path)
+        assert _ffprobe_has_video(output)
+        # Mute — no audio stream.
+        streams = json.loads(
+            subprocess.run(
+                ["ffprobe", "-v", "error", "-show_streams", "-of", "json", str(output)],
+                check=True, capture_output=True,
+            ).stdout
+        )["streams"]
+        assert not any(s.get("codec_type") == "audio" for s in streams)
+        kinds = set(Artifact.objects.filter(job=job).values_list("kind", flat=True))
+        assert {"drive", "appearance_still", "scene", "hook", "output"} <= kinds
+        # No singer/caption machinery ran.
+        assert {"vocal_stem", "captions", "portrait", "lipsync"} & kinds == set()
