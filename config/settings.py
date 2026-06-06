@@ -361,7 +361,7 @@ MIMIC_SCENE_PROMPT_TEMPLATE = env(
 # cap length (cost control — MimicMotion price scales with frame count).
 DRIVE_WIDTH = env.int("DRIVE_WIDTH", default=1080)
 DRIVE_HEIGHT = env.int("DRIVE_HEIGHT", default=1920)
-DRIVE_MAX_SECONDS = env.float("DRIVE_MAX_SECONDS", default=10.0)
+DRIVE_MAX_SECONDS = env.float("DRIVE_MAX_SECONDS", default=15.0)
 KLING_MOTION_PROMPT = env(
     "KLING_MOTION_PROMPT",
     default=(
