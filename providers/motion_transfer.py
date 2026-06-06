@@ -19,8 +19,12 @@ from django.conf import settings
 from providers.base import ProviderConfigError
 
 _HTTP_TIMEOUT = httpx.Timeout(600.0)
-_POLL_INTERVAL_S = 5.0
-_POLL_MAX_TRIES = 360  # 360 * 5s = 30 min ceiling
+# MimicMotion renders are slow — minutes at 576px, much longer at 1024px (the
+# diffusion cost scales with pixels × frames). The ceiling must comfortably
+# outlast the worst case: a timeout here raises, and the stage's autoretry would
+# then start a BRAND-NEW prediction (duplicate GPU spend). 10s × 1080 = 3 hours.
+_POLL_INTERVAL_S = 10.0
+_POLL_MAX_TRIES = 1080
 
 
 def _download(url: str, out_path: Path) -> Path:
