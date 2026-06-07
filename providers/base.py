@@ -128,6 +128,21 @@ class MotionTransfer(Protocol):
 
 
 @runtime_checkable
+class VideoUnderstander(Protocol):
+    def describe(self, video_path: Path) -> dict[str, object]:
+        """Watch a trending video and return draft preset fields + a timeline.
+
+        Returns the free-text fields a dance preset carries — ``theme`` (the
+        setting/environment), ``style`` (wardrobe/look), ``motion`` (the
+        choreography + camera energy), ``hook`` (a POV-style title) — all
+        strings, plus ``shots``: a list of ``{time, action, camera}`` segments
+        giving a second-by-second breakdown detailed enough to reproduce the
+        clip. Used by the ``describe_trend`` authoring helper, not the runtime.
+        """
+        ...
+
+
+@runtime_checkable
 class VideoLipSyncer(Protocol):
     def sync_video(self, video_path: Path, audio_path: Path, out_path: Path) -> Path:
         """Map a mouth onto an already-moving video, synced to ``audio_path``."""
@@ -225,6 +240,16 @@ def get_motion_transfer() -> MotionTransfer:
     raise ProviderConfigError(
         f"Unknown MOTION_TRANSFER_PROVIDER {provider!r}; expected wan_animate | mimicmotion."
     )
+
+
+def get_video_understander() -> VideoUnderstander:
+    if _is_fake():
+        from providers.fakes import FakeVideoUnderstander  # noqa: PLC0415
+
+        return FakeVideoUnderstander()
+    from providers.gemini import RealGeminiVideoUnderstander  # noqa: PLC0415
+
+    return RealGeminiVideoUnderstander()
 
 
 def get_video_lip_syncer() -> VideoLipSyncer:

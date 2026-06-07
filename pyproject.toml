@@ -23,6 +23,10 @@ dependencies = [
     # they ship in the image so flipping PROVIDER_MODE=real Just Works.
     "replicate>=1.0",
     "fal-client>=0.5",
+    # google-genai powers the Real video-understanding backend (describe_trend):
+    # native video input to Gemini. Deferred import like the others, in the image
+    # so PROVIDER_MODE=real Just Works.
+    "google-genai>=1.0",
     # Fetches the guide-track audio from a URL or a "name/artist" search
     # (ytsearch) when a preset gives song.source instead of a local file.
     # Uses ffmpeg (already in the image) to extract to mp3.

@@ -19,6 +19,7 @@ from django.conf import settings
 
 from compose.captions import build_ass, build_hook_ass, window_words
 from compose.ffmpeg import (
+    apply_realism_grade,
     beat_cut_concat,
     compose_final,
     compose_scene,
@@ -496,7 +497,12 @@ def compose_video(payload: dict) -> dict:
         crossfade_loop = settings.LOOP_SEAMLESS_ENABLED and settings.DANCE_LOOP_MODE == "crossfade"
     else:
         crossfade_loop = settings.LOOP_SEAMLESS_ENABLED
-    compose_target = artifact_path(ctx.job_id, "prewrap.mp4") if crossfade_loop else out
+    # The realism grade (if on) is the last step and writes the final ``out``;
+    # everything before composes into ``final_video`` (the ungraded pre-grade
+    # result), and the loop step wraps that.
+    grade = settings.REALISM_GRADE_ENABLED
+    final_video = artifact_path(ctx.job_id, "pregrade.mp4") if grade else out
+    compose_target = artifact_path(ctx.job_id, "prewrap.mp4") if crossfade_loop else final_video
     if ctx.mode == "vibe":
         # Pure clean cinematic loop: the scene clip + audio only — no captions,
         # no hook, no kinetic camera (the slow camera move IS the motion).
@@ -578,7 +584,9 @@ def compose_video(payload: dict) -> dict:
             hook_captions=hook_captions,
         )
     if crossfade_loop:
-        loop_seamless(compose_target, out, settings.LOOP_CROSSFADE_SECONDS)
+        loop_seamless(compose_target, final_video, settings.LOOP_CROSSFADE_SECONDS)
+    if grade:
+        apply_realism_grade(final_video, out, settings.REALISM_GRADE_FILTER)
     ctx.output_path = str(out)
     Job.objects.filter(pk=ctx.job_id).update(output_path=str(out))
     _record(ctx.job_id, "compose_video", "output", out)

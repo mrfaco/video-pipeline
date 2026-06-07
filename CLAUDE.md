@@ -90,6 +90,7 @@ Only the orchestrator and stages write `Job`/`Artifact` rows.
 make up                                   # full stack (web + worker + beat + redis)
 make run-job PRESET=presets/demo.yaml     # trigger a job (admin action / API also work)
 ./venv/bin/python manage.py run_job presets/demo.yaml --sync   # run inline, no worker
+./venv/bin/python manage.py describe_trend "<url>" --name foo  # trend video → draft preset
 make test  /  make lint  /  make typecheck  /  make discipline
 make coverage-ratchet                     # raise the coverage floor (never lowers)
 ```
@@ -110,6 +111,15 @@ make coverage-ratchet                     # raise the coverage floor (never lowe
   guesses, not verified contracts. Lip-sync especially: test on real *sung* audio.
 - **Tests need real `ffmpeg`/`ffprobe` on PATH** (the compose + pipeline tests run them on
   `fixtures/`). The Docker image installs ffmpeg; a host venv run needs it too.
+- **Imitating a trend = an authoring helper, NOT a pipeline stage.** `manage.py describe_trend <url>`
+  watches a trending clip with **Gemini** (`providers/gemini.py`, native video input — the only major
+  API that ingests the actual clip, so camera motion + choreography survive) via the
+  `get_video_understander()` Real/Fake factory, and writes a *draft* preset (`presets/trend_<slug>.yaml`)
+  with `theme`/`style`/`motion`/`hook` filled in and character + song left as TODO comments. The runtime
+  stays pure (preset in → video out); the human edits the draft, then runs it. The `imitate-trend` skill
+  (`.claude/skills/`) drives the full loop (describe → confirm accuracy → pick dance/mimic → ask
+  character + outfit → run → iterate). `GEMINI_API_KEY` + `PROVIDER_MODE=real` to watch a real video;
+  fake mode returns the `fixtures/trend_description.json` canned description.
 - **`PROVIDER_MODE` is global.** Per-stage live/fake overrides aren't wired yet — a documented
   extension point. To go live incrementally, flip the whole mode and supply the keys for the stages
   you've reached (cheap → expensive, lip-sync last).
@@ -117,6 +127,14 @@ make coverage-ratchet                     # raise the coverage floor (never lowe
   dancing" trips it), and Kling then hallucinates garbage from the black frame. `RealFalSceneGenerator`
   passes `enable_safety_checker: False` + `safety_tolerance: "6"` — keep it; control modesty via the
   prompt, not the checker.
+- **Ultra-realism is the default — fight FLUX's glossy "AI-influencer" look.** Three baked-in defaults
+  keep renders looking like real phone clips, not AI: (1) the scene-prompt templates use amateur-phone /
+  realistic-skin vocabulary (NOT "cinematic, photorealistic, highly detailed" — those trigger the waxy
+  render); `tests/test_realism_defaults.py` guards this. (2) `LORA_SCALE` defaults to **0.6** — a
+  glamour-trained LoRA at full strength welds heavy makeup + waxy skin onto the face regardless of prompt.
+  (3) a **de-glow grade** (`apply_realism_grade` in `compose/ffmpeg.py`, `REALISM_GRADE_*` settings) is the
+  last `compose_video` step: rolls back highlights/saturation + adds fine grain. Per-video, push harder with
+  matte/flat/cool prompt cues. `presets/neon_girl_car_pov.yaml` is the reference realistic-performing profile.
 - **Scene-gen identity priority: LoRA → PuLID → flux-pro.** `RealFalSceneGenerator.generate` picks by
   what the character carries: a trained **LoRA** (`character.lora` + `trigger`, via `fal-ai/flux-lora`)
   is **photoreal + consistent** and wins; else a `reference_image` → **PuLID** (`flux-pulid`, face-lock

@@ -10,6 +10,7 @@ written file out, the path returned (AGENTS.md §5).
 
 from __future__ import annotations
 
+import json
 import shutil
 import subprocess
 from pathlib import Path
@@ -72,6 +73,23 @@ class FakeSceneGenerator:
         trigger: str | None = None,
     ) -> Path:
         return _copy_fixture("background_still.png", out_path)
+
+
+class FakeVideoUnderstander:
+    """Returns a bundled structured trend description (no network).
+
+    Mirrors ``RealGeminiVideoUnderstander``: instead of watching the clip, it
+    parses the committed ``trend_description.json`` fixture into the same
+    theme/style/motion/hook draft-preset fields.
+    """
+
+    def describe(self, video_path: Path) -> dict[str, object]:
+        raw = (Path(settings.FIXTURES_DIR) / "trend_description.json").read_text(encoding="utf-8")
+        data = json.loads(raw)
+        fields = ("theme", "style", "motion", "hook")
+        out: dict[str, object] = {key: str(data[key]) for key in fields}
+        out["shots"] = data["shots"]
+        return out
 
 
 class FakeLipSyncer:

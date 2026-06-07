@@ -190,7 +190,11 @@ CHARACTER_ID_WEIGHT = env.float("CHARACTER_ID_WEIGHT", default=1.0)
 # LoRA renders her photoreal + consistent via fal-ai/flux-lora, beating PuLID
 # (which trades realism for face-lock). lora is a URL or local .safetensors path.
 LORA_INFERENCE_MODEL = env("LORA_INFERENCE_MODEL", default="fal-ai/flux-lora")
-LORA_SCALE = env.float("LORA_SCALE", default=1.0)
+# Realism default: a glamour-trained identity LoRA at full strength welds heavy
+# makeup + waxy skin onto the face no matter the prompt. ~0.6 lets the realism
+# cues land while still holding identity (validated on the neon girl matte look).
+# Raise per character if identity drifts.
+LORA_SCALE = env.float("LORA_SCALE", default=0.6)
 # The scene prompt is {theme} (the setting) + {style} (the woman's look, swappable
 # per-preset via `style:`) + an always-on safety clause. NOTE: the wardrobe stays
 # this side of explicit on purpose — revealing outfits (bikini/lingerie) get the
@@ -199,22 +203,30 @@ LORA_SCALE = env.float("LORA_SCALE", default=1.0)
 SCENE_PROMPT_TEMPLATE = env(
     "SCENE_PROMPT_TEMPLATE",
     default=(
-        "a stunning attractive young woman dancing energetically in {theme}, "
+        "amateur phone video of a real young woman dancing energetically in {theme}, "
         "{style}, tasteful and never explicit — no nudity, no lingerie, no "
-        "swimwear, full body in frame, dynamic confident pose, cinematic lighting, "
-        "photorealistic, highly detailed, vertical 9:16 composition, scroll-stopping"
+        "swimwear, full body in frame, natural confident pose, soft natural "
+        "true-to-life lighting, realistic skin with visible texture and subtle "
+        "imperfections, unretouched, slight phone-camera grain, candid snapshot "
+        "look, vertical 9:16 composition"
     ),
 )
 # Used when a preset sets `framing: close` — an intimate chest-up portrait (the
 # "cool girl" / e-girl posing format) instead of the full-body dance shot.
+# Realism default (validated on the car-trend render): an amateur front-camera
+# phone selfie, NOT a cinematic portrait. The glossy vocabulary ("cinematic,
+# photorealistic, highly detailed, moody, scroll-stopping") is what produced the
+# waxy AI-influencer look; this swaps it for natural-skin / phone-snapshot cues.
 SCENE_PROMPT_CLOSE = env(
     "SCENE_PROMPT_CLOSE",
     default=(
-        "a moody cinematic close-up portrait of a stunning attractive young woman, "
-        "{style}, in {theme}, framed from the chest up, a stylish modeling pose "
-        "looking toward the camera, soft moody lighting, photorealistic, highly "
-        "detailed, vertical 9:16 composition, scroll-stopping, tasteful and never "
-        "explicit — no nudity, no lingerie, no swimwear"
+        "a candid front-facing phone selfie of a young woman, {style}, sitting in "
+        "{theme}, framed from the chest up looking into the phone camera, casual "
+        "relaxed everyday pose, soft flat natural true-to-life lighting, no makeup "
+        "look, realistic bare skin with visible pores and subtle imperfections, "
+        "slight phone-camera grain and softness, amateur iPhone front-camera photo, "
+        "snapshot aesthetic, vertical 9:16 composition, tasteful and never explicit "
+        "— no nudity, no lingerie, no swimwear"
     ),
 )
 DANCE_CHARACTER_STYLE = env(
@@ -374,12 +386,12 @@ MIMICMOTION_FPS = env.int("MIMICMOTION_FPS", default=24)
 MIMIC_SCENE_PROMPT_TEMPLATE = env(
     "MIMIC_SCENE_PROMPT_TEMPLATE",
     default=(
-        "a full-body photo of a stunning attractive young woman standing in a "
+        "an amateur full-body phone photo of a real young woman standing in a "
         "relaxed neutral pose facing the camera, {style}, in {theme}, bright and "
-        "evenly lit, clean and uncluttered, in sharp crisp focus, well-exposed, "
-        "head to toe fully in frame, photorealistic, highly detailed, vertical "
-        "9:16 composition, tasteful and never explicit — no nudity, no lingerie, "
-        "no swimwear"
+        "evenly lit, clean and uncluttered, well-exposed, head to toe fully in "
+        "frame, realistic skin with natural texture and subtle imperfections, "
+        "true-to-life colors, unretouched, vertical 9:16 composition, tasteful and "
+        "never explicit — no nudity, no lingerie, no swimwear"
     ),
 )
 # Driving-video normalization: scale-to-fill 9:16 at these dims, strip audio,
@@ -387,6 +399,49 @@ MIMIC_SCENE_PROMPT_TEMPLATE = env(
 DRIVE_WIDTH = env.int("DRIVE_WIDTH", default=1080)
 DRIVE_HEIGHT = env.int("DRIVE_HEIGHT", default=1920)
 DRIVE_MAX_SECONDS = env.float("DRIVE_MAX_SECONDS", default=15.0)
+
+# ---------------------------------------------------------------------------
+# Trend video understanding (preset-authoring helper, NOT a pipeline stage)
+# ---------------------------------------------------------------------------
+# `describe_trend` watches a trending clip and drafts a preset's free-text
+# fields. Gemini is the only major API with native video input (the actual clip,
+# not extracted frames — so camera motion + choreography survive). The model ID
+# is env-overridable; bump the fps above the API's 1 default so fast dance isn't
+# undersampled. Like the other Real clients, the request shape is best-effort
+# until verified live.
+GEMINI_API_KEY = env("GEMINI_API_KEY", default="")
+VIDEO_UNDERSTAND_MODEL = env("VIDEO_UNDERSTAND_MODEL", default="gemini-3.5-flash")
+VIDEO_UNDERSTAND_FPS = env.int("VIDEO_UNDERSTAND_FPS", default=4)
+# Instructs Gemini to return the four draft-preset fields in the project's house
+# style. The wardrobe-safety clause mirrors SCENE_PROMPT_TEMPLATE: a draft that
+# suggests bikini/lingerie would get the render age-restricted (→ ~0 views).
+TREND_DESCRIBE_PROMPT = env(
+    "TREND_DESCRIBE_PROMPT",
+    default=(
+        "You are watching a short vertical (9:16) social-media trend video so it can be "
+        "recreated faithfully as a text-to-image/video clip. Watch the WHOLE clip closely and "
+        "describe ONLY what you actually see and hear — never invent. Return JSON with these "
+        "fields:\n"
+        "- shots: an ARRAY covering the clip start to finish in consecutive ~1-2 second segments "
+        "(use as many as needed — do not summarize or skip time). Each item has:\n"
+        "    time: the timestamp range, e.g. '0:00-0:02';\n"
+        "    action: EXACTLY what the subject does in that window — body pose, weight, hands, "
+        "head, gaze, facial expression, and whether they are lip-syncing/mouthing words. Be "
+        "concrete enough that someone could recreate this frame from your words alone;\n"
+        "    camera: the shot size (close-up / waist-up / full-body), angle, and any camera "
+        "movement or cut (push-in, pull-back, whip, hard cut, static).\n"
+        "- theme: the setting/environment (place, time of day, lighting, props, atmosphere) as a "
+        "vivid noun phrase, no people described. Note mid-clip changes if any.\n"
+        "- style: the subject's wardrobe and overall look as a phrase starting with 'wearing'. "
+        "Keep it fitted-but-clothed and platform-safe — never nudity, lingerie, or swimwear.\n"
+        "- motion: a single dense, time-ordered paragraph synthesizing the shots into one prompt "
+        "for an image-to-video model — the full sequence of the subject's movement and the camera, "
+        "in order, with the same specificity as the shots.\n"
+        "- hook: a short scroll-stopping on-screen title in the style of the trend (e.g. a "
+        "'POV: ...' line), 3-8 words.\n"
+        "The strings are injected directly into a generation prompt, so be concrete and visual."
+    ),
+)
 KLING_MOTION_PROMPT = env(
     "KLING_MOTION_PROMPT",
     default=(
@@ -483,6 +538,18 @@ TRIO_FLANK_PEEK_PX = env.int("TRIO_FLANK_PEEK_PX", default=40)
 # last LOOP_CROSSFADE_SECONDS back over the first (a soft xfade at the wrap).
 LOOP_SEAMLESS_ENABLED = env.bool("LOOP_SEAMLESS_ENABLED", default=True)
 LOOP_CROSSFADE_SECONDS = env.float("LOOP_CROSSFADE_SECONDS", default=0.4)
+# De-glow realism grade, applied to the final video (the last compose step).
+# FLUX + the avatar models bake in a glossy "AI-influencer" sheen; this rolls
+# back highlights, drops saturation a touch, and adds fine film grain so the
+# render reads as a real phone clip. Part of the ultra-realistic default.
+REALISM_GRADE_ENABLED = env.bool("REALISM_GRADE_ENABLED", default=True)
+REALISM_GRADE_FILTER = env(
+    "REALISM_GRADE_FILTER",
+    default=(
+        "curves=master='0/0 0.5/0.48 0.75/0.68 1/0.92',"
+        "eq=saturation=0.85:contrast=1.04:gamma=0.97,noise=alls=7:allf=t+u"
+    ),
+)
 # How dance mode loops:
 #   "crossfade" — Kling dances at full energy throughout; compose dissolves the
 #                 wrap (energetic all the way, brief soft blend at the seam).

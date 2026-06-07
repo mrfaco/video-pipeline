@@ -1,0 +1,35 @@
+# "Car-lighting POV" — realistic performing selfie, the neon girl.
+# Imitation of https://vt.tiktok.com/ZSQjr3kEu/ (a close-up car expression/posing POV).
+#
+# Recipe locked 2026-06-07: dance + framing:close (Kling animates the posing), the neon
+# girl at LoRA 0.6 with matte/flat/cool styling, finished with the de-glow realism grade —
+# all now defaults, so this renders realistic (NOT AI-glossy) from a plain `run_job`. No
+# lip-sync: the trend's gestures read better than a mouth-sync, and the sound goes on at post.
+#
+# Original-trend reference timeline (what we're imitating, second by second):
+#   00:00-00:02  Looks up and to the side, then to camera; blinks, winks right eye. [extreme close-up]
+#   00:02-00:04  Sits back against the red leather seat, confident gaze. [medium close-up, pull-back]
+#   00:04-00:06  Rolls eyes upward, then a soft smile. [medium close-up]
+#   00:06-00:08  Exaggerated pouty face, then back to a neutral confident expression. [medium close-up]
+#   00:08-00:10  Runs a hand through her hair, arm held up behind her head while posing. [medium close-up]
+#   00:10-00:12  Hand still behind head, looks away, turns back with a cute pout. [medium close-up]
+
+mode: dance
+framing: close
+captions: false
+
+hook: "POV: when the car lighting hits just right"
+
+song:
+  source: "https://vt.tiktok.com/ZSQjr3kEu/"
+
+character:
+  image: presets/characters/neon_girl.png
+  lora: presets/characters/neon_girl.lora.safetensors
+  trigger: neongirl
+
+style: "wearing a casual fitted white short-sleeve cotton t-shirt with a crew neckline, the sleeves covering her shoulders and underarms, a thin delicate gold necklace with a small four-leaf clover pendant, completely matte skin with no highlighter, no dewy glow and no shine, a bare natural face with barely any makeup, just light natural freckles, no contouring and no heavy eyeliner, sleek long dark hair, realistic bare skin with visible pores, real texture and minor natural imperfections, completely unretouched"
+
+theme: "the interior of an ordinary parked car with red leather seats, flat soft overcast daylight through the windows, cool neutral white balance, no direct sun and no bloom, slightly underexposed, true-to-life muted colors, plain everyday setting"
+
+motion: "slow modeling poses and playful expression shifts in an intimate close-up, NOT dancing — she starts looking up and to the side, then turns to the camera, blinks, winks her right eye with a playful smirk, then sits back into the seat with a confident gaze as a warm sun flare blooms behind her; she rolls her eyes upward and softly smiles, shifts into an exaggerated pout then back to a cool confident neutral, then runs one hand through her long hair and holds her arm up behind her head while posing, finally glancing away and turning back with a cute pout. Subtle, graceful, flirty close-up energy"

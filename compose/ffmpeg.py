@@ -304,6 +304,27 @@ def loop_seamless(src: Path, out_path: Path, duration: float = 0.4) -> Path:
     return out_path
 
 
+def apply_realism_grade(src: Path, out_path: Path, grade_filter: str) -> Path:
+    """De-glow the final clip so it doesn't read as an obvious AI render.
+
+    FLUX and the avatar models bake in a glossy "AI-influencer" sheen — waxy
+    poreless skin, blown highlights, oversaturation. ``grade_filter`` (an ffmpeg
+    ``-vf`` string from settings) rolls back the highlights, drops saturation a
+    touch, and lays in fine film grain to break the plastic smoothness. Audio is
+    copied through untouched so a synced song stays in step. Returns ``out_path``.
+    """
+    src = Path(src)
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    audio_maps = ["-c:a", "copy"] if _has_audio(src) else ["-an"]
+    cmd = [
+        "ffmpeg", "-y", "-i", str(src),
+        "-vf", grade_filter, *audio_maps, *_VIDEO_ENCODE, str(out_path),
+    ]
+    _run(cmd)
+    return out_path
+
+
 def _kinetic_filter(
     in_label: str,
     out_label: str,
