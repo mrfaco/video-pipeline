@@ -108,6 +108,18 @@ character: { image: presets/characters/neon_girl.png }
 theme: "a neon cyberpunk club, plain uncluttered backdrop"
 ```
 
+### Character identity, three ways
+
+Scene-gen picks the strongest identity signal a character carries (`generate_visuals` → `RealFalSceneGenerator`):
+
+1. **Trained LoRA** (`character.lora` + `character.trigger`) → `fal-ai/flux-lora` — **photoreal + consistent** (best). Train one out-of-band with `fal-ai/flux-lora-fast-training` on ~15 images of the character.
+2. **Reference image** (`character.image`) → `fal-ai/flux-pulid` — face-locked but less photoreal.
+3. **Neither** → `fal-ai/flux-pro/v1.1-ultra` — max realism, a fresh "same-vibe" face each render.
+
+`mimic` motion-transfer uses **Wan-2.2 Animate** on fal by default (`MOTION_TRANSFER_PROVIDER`; MimicMotion is a fallback).
+
+> **Note:** `presets/characters/` (faces, LoRA weights) and `fixtures/` are **gitignored / kept local** — this repo is public, so character likenesses and sample media never ship in it. Presets reference the local paths.
+
 ---
 
 ## Quickstart

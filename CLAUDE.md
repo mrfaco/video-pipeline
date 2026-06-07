@@ -124,6 +124,16 @@ make coverage-ratchet                     # raise the coverage floor (never lowe
   (trigger `neongirl`) — her presets point `lora:` at the **gitignored local** `.safetensors` (a URL
   would re-leak her identity asset into the public repo; the Real client uploads a local path). LoRAs
   are trained out-of-band via `fal-ai/flux-lora-fast-training`.
+- **Character assets + fixtures are LOCAL-ONLY (gitignored).** The repo is **public**
+  (`mrfaco/video-pipeline`). `presets/characters/` (her face, outfit variants, the `.lora.safetensors`
+  + `.lora.txt`) and `fixtures/` were **scrubbed from git history** and gitignored — they live on disk
+  but never in the repo (a full pre-scrub bundle is at `../brainrot-pre-scrub-backup.bundle`). So:
+  **never commit her images, the LoRA file, or a LoRA/identity URL** into tracked files (presets
+  reference the gitignored *local* paths); a fresh clone / CI won't have fixtures so it can't run the
+  suite (fine for the local Pi). `.env` (real keys incl. `ELEVENLABS_API_KEY`) is gitignored too.
+- **TikTok fetch needs `curl_cffi`** (impersonation) for some URLs — installed in the venv, not yet in
+  `pyproject.toml`. `core.fetch.fetch_video`/`fetch_audio` use yt-dlp; without curl_cffi some TikToks
+  fail to extract.
 - **Wardrobe = reach.** Revealing outfits (bikini/lingerie) get the videos age-restricted and
   suppressed (~0 views). `SCENE_PROMPT_TEMPLATE` deliberately specifies a fitted-but-clothed
   ("subtly sexy, no nudity/lingerie/swimwear") look. Don't loosen it without knowing the cost.
