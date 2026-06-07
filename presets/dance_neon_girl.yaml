@@ -8,6 +8,8 @@ song:
 
 character:
   image: presets/characters/neon_girl.png
+  lora: presets/characters/neon_girl.lora.safetensors
+  trigger: neongirl
 
 style: "Y2K cyber-rave aesthetic — sleek hair, metallic holographic makeup, a fitted metallic holographic outfit, shiny and futuristic"
 

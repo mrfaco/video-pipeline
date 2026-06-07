@@ -117,6 +117,13 @@ make coverage-ratchet                     # raise the coverage floor (never lowe
   dancing" trips it), and Kling then hallucinates garbage from the black frame. `RealFalSceneGenerator`
   passes `enable_safety_checker: False` + `safety_tolerance: "6"` — keep it; control modesty via the
   prompt, not the checker.
+- **Scene-gen identity priority: LoRA → PuLID → flux-pro.** `RealFalSceneGenerator.generate` picks by
+  what the character carries: a trained **LoRA** (`character.lora` + `trigger`, via `fal-ai/flux-lora`)
+  is **photoreal + consistent** and wins; else a `reference_image` → **PuLID** (`flux-pulid`, face-lock
+  but less real); else **flux-pro v1.1 ultra** (max real, fresh face). The neon girl has a trained LoRA
+  (trigger `neongirl`) — her presets point `lora:` at the **gitignored local** `.safetensors` (a URL
+  would re-leak her identity asset into the public repo; the Real client uploads a local path). LoRAs
+  are trained out-of-band via `fal-ai/flux-lora-fast-training`.
 - **Wardrobe = reach.** Revealing outfits (bikini/lingerie) get the videos age-restricted and
   suppressed (~0 views). `SCENE_PROMPT_TEMPLATE` deliberately specifies a fitted-but-clothed
   ("subtly sexy, no nudity/lingerie/swimwear") look. Don't loosen it without knowing the cost.

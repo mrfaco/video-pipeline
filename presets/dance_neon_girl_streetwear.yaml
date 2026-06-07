@@ -7,6 +7,8 @@ song:
 
 character:
   image: presets/characters/neon_girl.png
+  lora: presets/characters/neon_girl.lora.safetensors
+  trigger: neongirl
 
 style: "a fitted cropped tank top, baggy cargo pants, an oversized varsity jacket, chunky white sneakers, gold hoop earrings and layered gold chains, trendy streetwear baddie style, sleek high ponytail"
 
