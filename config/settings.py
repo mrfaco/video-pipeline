@@ -186,6 +186,11 @@ SCENE_IMAGE_MODEL = env("SCENE_IMAGE_MODEL", default="fal-ai/flux-pro/v1.1-ultra
 # is PuLID's identity strength (higher = stricter to the reference face).
 CHARACTER_SCENE_MODEL = env("CHARACTER_SCENE_MODEL", default="fal-ai/flux-pulid")
 CHARACTER_ID_WEIGHT = env.float("CHARACTER_ID_WEIGHT", default=1.0)
+# LoRA identity path (highest priority in scene-gen): a character's trained Flux
+# LoRA renders her photoreal + consistent via fal-ai/flux-lora, beating PuLID
+# (which trades realism for face-lock). lora is a URL or local .safetensors path.
+LORA_INFERENCE_MODEL = env("LORA_INFERENCE_MODEL", default="fal-ai/flux-lora")
+LORA_SCALE = env.float("LORA_SCALE", default=1.0)
 # The scene prompt is {theme} (the setting) + {style} (the woman's look, swappable
 # per-preset via `style:`) + an always-on safety clause. NOTE: the wardrobe stays
 # this side of explicit on purpose — revealing outfits (bikini/lingerie) get the
