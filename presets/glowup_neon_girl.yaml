@@ -1,0 +1,32 @@
+# Glow-up transition — the neon girl: messy morning → Madison-style glam reveal.
+# Two looks stitched with a hard cut (the cut IS the reveal). Realistic by
+# default (LoRA 0.6, realism templates, de-glow grade). Mute — add the trend
+# sound at post. Render with:
+#   PROVIDER_MODE=real ./venv/bin/python manage.py render_transition presets/glowup_neon_girl.yaml
+# Tune a look by editing its before:/after: block (theme = setting, style =
+# outfit/makeup, motion = what she does, framing = how close, duration = on-screen).
+
+mode: transition
+
+# hook: "From morning messy to night out ready"   # optional caption; omit = none
+
+character:
+  image: presets/characters/neon_girl.png
+  lora: presets/characters/neon_girl.lora.safetensors
+  trigger: neongirl
+
+before:
+  theme: "a bright sunlit modern apartment hallway in the morning, soft natural daylight, plain everyday setting"
+  style: "wearing a fluffy pink fleece bathrobe with big pink foam hair rollers in her hair, no makeup, sleepy and a little messy"
+  motion: "a sleepy young woman in a bathrobe and hair rollers raises one hand to cover her mouth as she yawns softly, eyes half closed, looking cute and tired, gentle and natural, then lowers her hand from her mouth; subtle, minimal movement, NOT dancing"
+  framing: "from the chest up"
+  start: 0.0
+  duration: 2.8
+
+after:
+  theme: "a stylish upscale living room with soft warm ceiling lights and large windows with soft daylight behind her, a leather sofa, cozy modern interior"
+  style: "wearing a structured strappy black lace corset bustier top with boning detail worn as a going-out top, paired with a short black lace ruffle mini skirt, sparkling drop earrings, glamorous makeup, long voluminous wavy brown hair, alluring and sexy, fully clothed"
+  motion: "she stands with her hands on her hips, tilts her head back with her eyes closed and lips parted confidently, then lowers her head and looks into the camera with a sultry gaze, a slow subtle hip sway, alluring and confident, NOT dancing"
+  framing: "from the hips up close to the phone camera"
+  start: 0.5
+  duration: 5.0

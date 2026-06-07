@@ -325,6 +325,44 @@ def apply_realism_grade(src: Path, out_path: Path, grade_filter: str) -> Path:
     return out_path
 
 
+def concat_cuts(
+    segments: list[tuple[Path, float, float]],
+    out_path: Path,
+    width: int = 1080,
+    height: int = 1920,
+    fps: int = 30,
+) -> Path:
+    """Hard-cut-concatenate trimmed clips into one (the transition stitch).
+
+    ``segments`` is a list of ``(clip, start, duration)``: each clip is
+    scaled/padded to ``width``x``height`` at ``fps``, trimmed to
+    ``[start, start+duration]``, and the pieces are joined with hard cuts — the
+    cut IS the transition (a glow-up reveal), no crossfade. Mute (video only);
+    audio is added downstream. Returns ``out_path``.
+    """
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    scale = (
+        f"scale={width}:{height}:force_original_aspect_ratio=decrease,"
+        f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps={fps}"
+    )
+    inputs: list[str] = []
+    parts: list[str] = []
+    labels: list[str] = []
+    for i, (clip, start, duration) in enumerate(segments):
+        inputs += ["-i", str(clip)]
+        parts.append(
+            f"[{i}:v]{scale},trim=start={start:.3f}:duration={duration:.3f},"
+            f"setpts=PTS-STARTPTS[v{i}]"
+        )
+        labels.append(f"[v{i}]")
+    chain = ";".join(parts) + ";" + "".join(labels) + f"concat=n={len(segments)}:v=1:a=0[v]"
+    cmd = ["ffmpeg", "-y", *inputs, "-filter_complex", chain, "-map", "[v]", "-an",
+           *_VIDEO_ENCODE, str(out_path)]
+    _run(cmd)
+    return out_path
+
+
 def _kinetic_filter(
     in_label: str,
     out_label: str,

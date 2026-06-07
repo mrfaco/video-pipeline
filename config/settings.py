@@ -542,6 +542,22 @@ LOOP_CROSSFADE_SECONDS = env.float("LOOP_CROSSFADE_SECONDS", default=0.4)
 # FLUX + the avatar models bake in a glossy "AI-influencer" sheen; this rolls
 # back highlights, drops saturation a touch, and adds fine film grain so the
 # render reads as a real phone clip. Part of the ultra-realistic default.
+# Transition mode (glow-up): the per-look scene prompt. Makeup-neutral (each
+# look's `style` dictates bare-vs-glam) and realistic, with a `{framing}` slot
+# so before/after can frame differently. Realism vocabulary like the rest.
+TRANSITION_SCENE_PROMPT = env(
+    "TRANSITION_SCENE_PROMPT",
+    default=(
+        "a candid front-facing phone selfie of a young woman, {style}, in {theme}, framed "
+        "{framing} looking into the phone camera, soft true-to-life lighting, realistic skin "
+        "texture with visible pores and subtle imperfections, slight phone-camera grain, "
+        "amateur iPhone front-camera photo, vertical 9:16 composition, tasteful and never "
+        "explicit — no nudity, no underwear, no swimwear, fully clothed"
+    ),
+)
+TRANSITION_DEFAULT_FRAMING = env("TRANSITION_DEFAULT_FRAMING", default="from the chest up")
+TRANSITION_BEFORE_SECONDS = env.float("TRANSITION_BEFORE_SECONDS", default=2.8)
+TRANSITION_AFTER_SECONDS = env.float("TRANSITION_AFTER_SECONDS", default=5.0)
 REALISM_GRADE_ENABLED = env.bool("REALISM_GRADE_ENABLED", default=True)
 REALISM_GRADE_FILTER = env(
     "REALISM_GRADE_FILTER",

@@ -172,6 +172,57 @@ def load_preset(path: str | Path) -> dict:
     }
 
 
+def _parse_look(block: object, where: str, default_seconds: float) -> dict:
+    """Parse one transition look (``before``/``after``) into a normalized dict.
+
+    Requires ``theme``/``style``/``motion`` (the scene + movement); ``framing``,
+    ``start`` (trim into the Kling clip) and ``duration`` (how long it shows
+    before/after the cut) are optional with sensible defaults.
+    """
+    if not isinstance(block, dict):
+        raise PresetError(f"Transition '{where}' must be a mapping with theme/style/motion.")
+    theme = _require(block, "theme", where)
+    style = _require(block, "style", where)
+    motion = _require(block, "motion", where)
+    return {
+        "theme": str(theme).strip(),
+        "style": str(style).strip(),
+        "motion": str(motion).strip(),
+        "framing": str(block.get("framing") or settings.TRANSITION_DEFAULT_FRAMING).strip(),
+        "start": float(block.get("start", 0.0)),
+        "duration": float(block.get("duration", default_seconds)),
+    }
+
+
+def load_transition_preset(path: str | Path) -> dict:
+    """Parse a ``mode: transition`` preset: a locked character performing two
+    looks (``before`` → ``after``) stitched with a hard cut. Mute (sound at
+    post). Returns character fields + ``before``/``after`` look dicts + ``hook``.
+    """
+    preset_path = Path(path)
+    if not preset_path.is_file():
+        raise PresetError(f"Preset file not found: {preset_path}")
+    data = yaml.safe_load(preset_path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise PresetError(f"Preset {preset_path} did not parse to a mapping.")
+    if str(data.get("mode", "")).strip().lower() != "transition":
+        raise PresetError(f"{preset_path}: load_transition_preset needs mode 'transition'.")
+
+    character = _require(data, "character", str(preset_path))
+    ref, image, lora, trigger = _parse_character(character, "character")
+    before = _parse_look(data.get("before"), "before", settings.TRANSITION_BEFORE_SECONDS)
+    after = _parse_look(data.get("after"), "after", settings.TRANSITION_AFTER_SECONDS)
+    return {
+        "character_ref": ref,
+        "character_image": image,
+        "character_lora": lora,
+        "character_trigger": trigger,
+        "hook": (str(data.get("hook")).strip() if data.get("hook") else ""),
+        "before": before,
+        "after": after,
+    }
+
+
 def create_job_from_preset(preset_path: str | Path) -> Job:
     """Build a ``Job`` from a preset.
 
