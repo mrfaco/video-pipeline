@@ -1,0 +1,23 @@
+# Imitation of https://vt.tiktok.com/ZSQjtfXhe/ — a sunny "main character" strut
+# (walk forward, pose, spin, hair flip, sunglasses), moved to a big luminous city
+# (Times Square). Full-body so the strut + outfit read. Realistic by default.
+
+mode: dance
+framing: full
+captions: false
+
+hook: "POV: main character energy in the city"
+
+song:
+  source: "https://vt.tiktok.com/ZSQjtfXhe/"
+
+character:
+  image: presets/characters/neon_girl.png
+  lora: presets/characters/neon_girl.lora.safetensors
+  trigger: neongirl
+
+style: "wearing a cream-colored strapless lace corset top, low-rise blue jeans with a silver chain belt, a small brown handbag over her shoulder, and dark sunglasses, cute summer streetwear"
+
+theme: "Times Square in New York City, surrounded by massive glowing LED billboards and bright vibrant city lights, luminous and busy, a big bright urban plaza, crowds blurred in the background"
+
+motion: "a confident young woman struts forward down the street with main-character energy — she poses with a hand on her hip, runs her hand through her hair, then spins playfully with her arms raised and looks back over her shoulder smiling, then keeps strutting toward the camera; lively full-body movement, walking and spinning, joyful and confident, the camera tracks backward with her"
