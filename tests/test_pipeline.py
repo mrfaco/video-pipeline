@@ -595,3 +595,31 @@ def test_pipeline_mimic_mode(tmp_path):
         assert {"drive", "appearance_still", "scene", "output"} <= kinds
         # Clean — NO text (no captions, no hook) — and no singer machinery.
         assert {"vocal_stem", "captions", "hook", "portrait", "lipsync"} & kinds == set()
+
+
+def test_load_preset_parses_lora(tmp_path):
+    p = tmp_path / "l.yaml"
+    p.write_text(
+        "song:\n  audio: fixtures/song.mp3\ntheme: t\nmode: dance\n"
+        "character:\n  image: fixtures/character_portrait.png\n"
+        "  lora: https://x/l.safetensors\n  trigger: neongirl\n",
+        encoding="utf-8",
+    )
+    pr = load_preset(str(p))
+    assert pr["character_lora"] == "https://x/l.safetensors"
+    assert pr["character_trigger"] == "neongirl"
+
+
+@pytest.mark.django_db
+def test_create_job_stores_lora(tmp_path):
+    p = tmp_path / "l.yaml"
+    p.write_text(
+        "song:\n  audio: fixtures/song.mp3\ntheme: t\nmode: dance\n"
+        "character:\n  image: fixtures/character_portrait.png\n"
+        "  lora: https://x/l.safetensors\n  trigger: neongirl\n",
+        encoding="utf-8",
+    )
+    with override_settings(MEDIA_ROOT=tmp_path):
+        job = create_job_from_preset(str(p))
+    assert job.character_lora == "https://x/l.safetensors"
+    assert job.character_trigger == "neongirl"
