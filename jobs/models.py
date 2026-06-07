@@ -49,6 +49,10 @@ class Job(models.Model):
     # A ready-made greenscreen portrait to use as-is (preset character.image),
     # instead of generating one. Copied into the job dir at creation.
     character_image = models.CharField(max_length=1000, blank=True)
+    # Trained Flux LoRA (URL or local path) + trigger word for the character.
+    # When set, scene-gen renders her via the LoRA instead of PuLID.
+    character_lora = models.CharField(max_length=1000, blank=True)
+    character_trigger = models.CharField(max_length=100, blank=True)
     # Optional backup character (preset `backup:`) → trio layout. Same shape as
     # the main character: a text ref and/or a ready-made image.
     backup_character_ref = models.CharField(max_length=500, blank=True)
