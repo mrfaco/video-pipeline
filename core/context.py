@@ -15,7 +15,7 @@ from __future__ import annotations
 from pydantic import BaseModel, ConfigDict
 
 # Bump when the shape of JobContext changes (AGENTS.md §11 schema versioning).
-SCHEMA_VERSION = 11
+SCHEMA_VERSION = 12
 
 
 class JobContext(BaseModel):
@@ -58,6 +58,11 @@ class JobContext(BaseModel):
     # A ready-made greenscreen portrait to use as-is (preset ``character.image``),
     # skipping portrait generation. None means generate from ``character_ref``.
     character_image: str | None = None
+    # A trained Flux LoRA for the character (URL or local path) + its trigger
+    # word. When set, scene-gen renders her via the LoRA (photoreal + consistent)
+    # instead of PuLID. None = fall back to reference_image/PuLID.
+    character_lora: str | None = None
+    character_trigger: str | None = None
     # Optional second character: when set, the pipeline renders it too and
     # compose lays out the viral TRIO (boss + two flanking backups). None = solo.
     backup_character_ref: str | None = None

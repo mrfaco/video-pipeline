@@ -26,3 +26,14 @@ def test_context_carries_drive_fields():
     assert round_tripped.drive_source == "https://x/y"
     assert round_tripped.drive_video_path == "/d/drive.mp4"
     assert round_tripped.schema_version == 11
+
+
+def test_context_carries_lora_fields():
+    ctx = JobContext(
+        job_id="j", theme="t", character_ref="", song_path="",
+        character_lora="https://x/l.safetensors", character_trigger="neongirl",
+    )
+    rt = JobContext.from_dict(ctx.to_dict())
+    assert rt.character_lora == "https://x/l.safetensors"
+    assert rt.character_trigger == "neongirl"
+    assert rt.schema_version == 12
