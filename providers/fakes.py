@@ -63,7 +63,14 @@ class FakePortraitGenerator:
 class FakeSceneGenerator:
     """Returns a bundled still as the integrated dance scene (no network)."""
 
-    def generate(self, prompt: str, out_path: Path, reference_image: Path | None = None) -> Path:
+    def generate(
+        self,
+        prompt: str,
+        out_path: Path,
+        reference_image: Path | None = None,
+        lora: str | None = None,
+        trigger: str | None = None,
+    ) -> Path:
         return _copy_fixture("background_still.png", out_path)
 
 

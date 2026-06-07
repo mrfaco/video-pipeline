@@ -229,3 +229,10 @@ def test_real_wan_animate_requires_fal_key():
     with override_settings(FAL_KEY=""):
         with pytest.raises(ProviderConfigError):
             RealWanAnimate()
+
+
+def test_fake_scene_generator_accepts_lora(tmp_path):
+    from providers.fakes import FakeSceneGenerator
+    out = tmp_path / "s.png"
+    r = FakeSceneGenerator().generate("p", out, lora="https://x/l.safetensors", trigger="neongirl")
+    assert r == out and out.exists()

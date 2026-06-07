@@ -69,12 +69,18 @@ class PortraitGenerator(Protocol):
 @runtime_checkable
 class SceneGenerator(Protocol):
     def generate(
-        self, prompt: str, out_path: Path, reference_image: Path | None = None
+        self,
+        prompt: str,
+        out_path: Path,
+        reference_image: Path | None = None,
+        lora: str | None = None,
+        trigger: str | None = None,
     ) -> Path:
         """One integrated scene still (character + environment) for dance mode.
 
-        ``reference_image`` locks a persistent character's face into the scene
-        (identity-preserving generation); None = a fresh same-vibe woman.
+        Identity priority: ``lora`` (a trained Flux LoRA URL/path + ``trigger``
+        word — photoreal + consistent) > ``reference_image`` (PuLID face-lock) >
+        neither (a fresh same-vibe woman via flux-pro).
         """
         ...
 
