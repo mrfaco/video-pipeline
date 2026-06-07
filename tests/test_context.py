@@ -25,7 +25,7 @@ def test_context_carries_drive_fields():
     round_tripped = JobContext.from_dict(ctx.to_dict())
     assert round_tripped.drive_source == "https://x/y"
     assert round_tripped.drive_video_path == "/d/drive.mp4"
-    assert round_tripped.schema_version == 11
+    assert round_tripped.schema_version == 12
 
 
 def test_context_carries_lora_fields():
