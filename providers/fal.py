@@ -97,9 +97,35 @@ class RealFalSceneGenerator:
         self._model = settings.SCENE_IMAGE_MODEL
 
     def generate(
-        self, prompt: str, out_path: Path, reference_image: Path | None = None
+        self,
+        prompt: str,
+        out_path: Path,
+        reference_image: Path | None = None,
+        lora: str | None = None,
+        trigger: str | None = None,
     ) -> Path:
         import fal_client  # noqa: PLC0415  (heavy optional SDK, real-mode only)
+
+        # A trained LoRA is the strongest identity path — photoreal AND consistent
+        # (PuLID trades realism for face-lock). lora is a URL (used directly) or a
+        # local .safetensors file (uploaded). The trigger word activates the LoRA
+        # and must lead the prompt.
+        if lora:
+            ref = lora if str(lora).startswith("http") else fal_client.upload_file(Path(lora))
+            full_prompt = f"{trigger}, {prompt}" if trigger else prompt
+            result = fal_client.subscribe(
+                settings.LORA_INFERENCE_MODEL,
+                arguments={
+                    "prompt": full_prompt,
+                    "loras": [{"path": ref, "scale": settings.LORA_SCALE}],
+                    "image_size": "portrait_16_9",
+                    "num_inference_steps": 30,
+                    "guidance_scale": 3.5,
+                    "num_images": 1,
+                    "enable_safety_checker": False,
+                },
+            )
+            return _download(_result_url(result, "images"), out_path)
 
         # With a reference face, lock the SAME person into the new scene via a
         # PuLID identity model (persistent character). Otherwise the text-only
