@@ -140,6 +140,8 @@ def prepare_assets(job_id: str) -> dict:
             style=(job.style or None), framing=job.framing,
             character_ref=job.character_ref,
             character_image=(job.character_image or None),
+            character_lora=(job.character_lora or None),
+            character_trigger=(job.character_trigger or None),
             drive_source=job.drive_source, drive_video_path=str(drive),
             enable_captions=False, song_path="",
         ).to_dict()
@@ -194,6 +196,8 @@ def prepare_assets(job_id: str) -> dict:
             and (job.lyrics or job.mode == "dance")
         ),
         character_image=(job.character_image or None),
+        character_lora=(job.character_lora or None),
+        character_trigger=(job.character_trigger or None),
         backup_character_ref=(job.backup_character_ref or None),
         backup_character_image=(job.backup_character_image or None),
         song_path=str(song_src),
@@ -273,7 +277,10 @@ def generate_visuals(payload: dict) -> dict:
         prompt = settings.MIMIC_SCENE_PROMPT_TEMPLATE.format(theme=ctx.theme, style=style)
         still = artifact_path(ctx.job_id, "appearance_still.png")
         reference = Path(ctx.character_image) if ctx.character_image else None
-        get_scene_generator().generate(prompt, still, reference_image=reference)
+        get_scene_generator().generate(
+                prompt, still, reference_image=reference,
+                lora=ctx.character_lora, trigger=ctx.character_trigger,
+            )
         _record(ctx.job_id, "generate_visuals", "appearance_still", still)
         clip = artifact_path(ctx.job_id, "mimic_motion.mp4")
         get_motion_transfer().transfer(still, _require_path(ctx.drive_video_path), clip)
@@ -323,7 +330,10 @@ def generate_visuals(payload: dict) -> dict:
         for i in range(n):
             prompt = f"{base_prompt}, {shots[i % len(shots)]}" if n > 1 else base_prompt
             still = artifact_path(ctx.job_id, f"scene_still_{i}.png")
-            get_scene_generator().generate(prompt, still, reference_image=reference)
+            get_scene_generator().generate(
+                prompt, still, reference_image=reference,
+                lora=ctx.character_lora, trigger=ctx.character_trigger,
+            )
             clip = artifact_path(ctx.job_id, f"scene_motion_{i}.mp4")
             get_animator().animate(
                 still,
