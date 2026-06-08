@@ -75,6 +75,7 @@ class SceneGenerator(Protocol):
         reference_image: Path | None = None,
         lora: str | None = None,
         trigger: str | None = None,
+        lora_scale: float | None = None,
     ) -> Path:
         """One integrated scene still (character + environment) for dance mode.
 

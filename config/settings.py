@@ -229,6 +229,21 @@ SCENE_PROMPT_CLOSE = env(
         "— no nudity, no lingerie, no swimwear"
     ),
 )
+# Dance framing "behind": a follow-from-behind walk (the "that girl" POV) — she
+# walks AWAY from the camera, then can turn to pose. The full/close templates
+# assume a face-forward subject, so this is a separate from-behind framing.
+# Realistic like the others. NEVER name eyewear here — FLUX can't negate it and
+# the scene prior adds sunglasses; describe the bare face instead.
+SCENE_PROMPT_BEHIND = env(
+    "SCENE_PROMPT_BEHIND",
+    default=(
+        "amateur phone video of a real young woman seen from behind walking away from the "
+        "camera through {theme}, {style}, full body in frame, natural confident stride, soft "
+        "natural daylight, realistic skin and real textures, unretouched, slight phone-camera "
+        "grain, candid snapshot look, vertical 9:16 composition, tasteful and never explicit "
+        "— no nudity, no lingerie, no swimwear"
+    ),
+)
 DANCE_CHARACTER_STYLE = env(
     "DANCE_CHARACTER_STYLE",
     default=(

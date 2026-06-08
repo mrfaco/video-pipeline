@@ -1,0 +1,24 @@
+# "That girl" follow-me POV (like the Sunset Plaza walk), moved to NYC SoHo.
+# Camera follows the neon girl from behind down an upscale shopping street; she
+# turns to pose mid-walk. All-black athleisure + bag. Self-contained — plain
+# run_job (framing: behind = from-behind shot; lora_scale: 1.0 locks her identity,
+# which the global realism default 0.6 is too low for in a fresh scene).
+mode: dance
+framing: behind
+lora_scale: 1.0
+captions: false
+# hook: "Life is your creation"   # caption off — add a quote at post if wanted
+
+song:
+  source: "https://vt.tiktok.com/ZSQ6JfV5L/"
+
+character:
+  image: presets/characters/neon_girl.png
+  lora: presets/characters/neon_girl.lora.safetensors
+  trigger: neongirl
+
+style: "a tan sun-kissed woman with her signature sleek long dark hair in a high ponytail, her bare face and both eyes clearly visible, defined glamorous features and bold lips, wearing an all-black fitted long-sleeve athleisure top and black leggings with a grey top underneath, a white leather shoulder bag and a kraft paper shopping bag, polished 'that girl' look"
+
+theme: "an upscale SoHo shopping street in New York City under soft hazy overcast daylight, historic cast-iron buildings with chic boutique storefronts and awnings, trees and flower planters along the sidewalk, expensive and aspirational"
+
+motion: "the camera follows close behind her as she walks away down the sidewalk with a confident stride; partway she slows and turns to look back over her shoulder toward the camera, running a hand through her hair with a soft confident smile, her eyes visible, then turns and keeps walking away; smooth gimbal follow, natural walking, NOT dancing"

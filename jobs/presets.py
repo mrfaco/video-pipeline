@@ -85,8 +85,20 @@ def load_preset(path: str | Path) -> dict:
         )
 
     framing = str(data.get("framing", "full")).strip().lower()
-    if framing not in {"full", "close"}:
-        raise PresetError(f"{preset_path}: framing must be 'full' or 'close', got {framing!r}.")
+    if framing not in {"full", "close", "behind"}:
+        raise PresetError(
+            f"{preset_path}: framing must be 'full', 'close', or 'behind', got {framing!r}."
+        )
+
+    # Optional per-preset LoRA strength. A glamour-trained identity LoRA needs
+    # ~1.0 to hold in a new scene; the global default (LORA_SCALE) leans low for
+    # realism. None = use the global default.
+    lora_scale = data.get("lora_scale")
+    if lora_scale is not None:
+        try:
+            lora_scale = float(lora_scale)
+        except (TypeError, ValueError) as exc:
+            raise PresetError(f"{preset_path}: lora_scale must be a number.") from exc
 
     # Dance/vibe generate the girl in the scene → character optional. Closeup
     # lip-syncs a specific portrait, and mimic transfers motion onto a locked
@@ -159,6 +171,7 @@ def load_preset(path: str | Path) -> dict:
         "style": (str(data.get("style")).strip() if data.get("style") else ""),
         "motion": (str(data.get("motion")).strip() if data.get("motion") else ""),
         "framing": framing,
+        "lora_scale": lora_scale,
         "drive_source": drive_source,
         "captions": bool(data.get("captions", True)),
         "lyrics": (song.get("lyrics") or "").strip(),
@@ -239,6 +252,7 @@ def create_job_from_preset(preset_path: str | Path) -> Job:
         style=preset["style"],
         motion=preset["motion"],
         framing=preset["framing"],
+        lora_scale=preset["lora_scale"],
         captions_enabled=preset["captions"],
         lyrics=preset["lyrics"],
         character_ref=preset["character_ref"],

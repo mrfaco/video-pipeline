@@ -143,6 +143,7 @@ def prepare_assets(job_id: str) -> dict:
             character_image=(job.character_image or None),
             character_lora=(job.character_lora or None),
             character_trigger=(job.character_trigger or None),
+            lora_scale=job.lora_scale,
             drive_source=job.drive_source, drive_video_path=str(drive),
             enable_captions=False, song_path="",
         ).to_dict()
@@ -199,6 +200,7 @@ def prepare_assets(job_id: str) -> dict:
         character_image=(job.character_image or None),
         character_lora=(job.character_lora or None),
         character_trigger=(job.character_trigger or None),
+        lora_scale=job.lora_scale,
         backup_character_ref=(job.backup_character_ref or None),
         backup_character_image=(job.backup_character_image or None),
         song_path=str(song_src),
@@ -281,6 +283,7 @@ def generate_visuals(payload: dict) -> dict:
         get_scene_generator().generate(
                 prompt, still, reference_image=reference,
                 lora=ctx.character_lora, trigger=ctx.character_trigger,
+                lora_scale=ctx.lora_scale,
             )
         _record(ctx.job_id, "generate_visuals", "appearance_still", still)
         clip = artifact_path(ctx.job_id, "mimic_motion.mp4")
@@ -302,11 +305,12 @@ def generate_visuals(payload: dict) -> dict:
             shots = [""]
         else:
             style = ctx.style or settings.DANCE_CHARACTER_STYLE
-            template = (
-                settings.SCENE_PROMPT_CLOSE
-                if ctx.framing == "close"
-                else settings.SCENE_PROMPT_TEMPLATE
-            )
+            if ctx.framing == "close":
+                template = settings.SCENE_PROMPT_CLOSE
+            elif ctx.framing == "behind":
+                template = settings.SCENE_PROMPT_BEHIND
+            else:
+                template = settings.SCENE_PROMPT_TEMPLATE
             base_prompt = template.format(theme=ctx.theme, style=style)
             motion_prompt = ctx.motion or settings.DANCE_MOTION_PROMPT
             cfg = settings.DANCE_KLING_CFG
@@ -334,6 +338,7 @@ def generate_visuals(payload: dict) -> dict:
             get_scene_generator().generate(
                 prompt, still, reference_image=reference,
                 lora=ctx.character_lora, trigger=ctx.character_trigger,
+                lora_scale=ctx.lora_scale,
             )
             clip = artifact_path(ctx.job_id, f"scene_motion_{i}.mp4")
             get_animator().animate(

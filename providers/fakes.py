@@ -71,6 +71,7 @@ class FakeSceneGenerator:
         reference_image: Path | None = None,
         lora: str | None = None,
         trigger: str | None = None,
+        lora_scale: float | None = None,
     ) -> Path:
         return _copy_fixture("background_still.png", out_path)
 

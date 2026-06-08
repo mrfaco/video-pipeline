@@ -39,8 +39,12 @@ class Job(models.Model):
     style = models.TextField(blank=True)
     # Optional dance motion prompt override (e.g. an OOTD walk instead of dancing).
     motion = models.TextField(blank=True)
-    # Scene framing: "full" (full-body) or "close" (chest-up portrait / cool-girl).
+    # Scene framing: "full" (full-body), "close" (chest-up portrait), or
+    # "behind" (follow-from-behind walk).
     framing = models.CharField(max_length=16, default="full")
+    # Optional per-preset LoRA strength (null = use settings.LORA_SCALE). A
+    # glamour-trained identity LoRA needs ~1.0 to hold in a fresh scene.
+    lora_scale = models.FloatField(null=True, blank=True)
     # Per-preset captions toggle (e.g. off for the clean OOTD/vibe aesthetic).
     captions_enabled = models.BooleanField(default=True)
     theme = models.TextField()

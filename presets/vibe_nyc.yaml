@@ -1,0 +1,6 @@
+# Vibe mode (boat POV): a realistic ride through the NYC waterfront — moving boat
+# camera, bow + wake in frame, no people, no text, MUTE (sound at post). Render
+# with the realistic boat-POV overrides (see the run command in chat / Makefile).
+mode: vibe
+
+theme: "the Manhattan waterfront at blue-hour twilight — sleek glass luxury skyscrapers and moored yachts lining the shore, the glowing Manhattan skyline as the city lights come on, calm dark river water reflecting the buildings"

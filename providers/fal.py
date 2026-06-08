@@ -103,9 +103,13 @@ class RealFalSceneGenerator:
         reference_image: Path | None = None,
         lora: str | None = None,
         trigger: str | None = None,
+        lora_scale: float | None = None,
     ) -> Path:
         import fal_client  # noqa: PLC0415  (heavy optional SDK, real-mode only)
 
+        # Per-preset override beats the global default (a glam-trained identity
+        # LoRA needs ~1.0 to hold in a fresh scene; the global leans low for realism).
+        scale = lora_scale if lora_scale is not None else settings.LORA_SCALE
         # A trained LoRA is the strongest identity path — photoreal AND consistent
         # (PuLID trades realism for face-lock). lora is a URL (used directly) or a
         # local .safetensors file (uploaded). The trigger word activates the LoRA
@@ -117,7 +121,7 @@ class RealFalSceneGenerator:
                 settings.LORA_INFERENCE_MODEL,
                 arguments={
                     "prompt": full_prompt,
-                    "loras": [{"path": ref, "scale": settings.LORA_SCALE}],
+                    "loras": [{"path": ref, "scale": scale}],
                     "image_size": "portrait_16_9",
                     "num_inference_steps": 30,
                     "guidance_scale": 3.5,
