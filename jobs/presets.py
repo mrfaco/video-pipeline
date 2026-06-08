@@ -100,6 +100,14 @@ def load_preset(path: str | Path) -> dict:
         except (TypeError, ValueError) as exc:
             raise PresetError(f"{preset_path}: lora_scale must be a number.") from exc
 
+    # Scene-gen backend: "" (use the global default) | "fal" (FLUX) | "seedream"
+    # (Seedream 4.5, photoreal, reference-image identity — Alma's engine).
+    scene_generator = str(data.get("scene_generator") or "").strip().lower()
+    if scene_generator not in {"", "fal", "seedream"}:
+        raise PresetError(
+            f"{preset_path}: scene_generator must be 'fal' or 'seedream', got {scene_generator!r}."
+        )
+
     # Dance/vibe generate the girl in the scene → character optional. Closeup
     # lip-syncs a specific portrait, and mimic transfers motion onto a locked
     # character → both require one.
@@ -172,6 +180,7 @@ def load_preset(path: str | Path) -> dict:
         "motion": (str(data.get("motion")).strip() if data.get("motion") else ""),
         "framing": framing,
         "lora_scale": lora_scale,
+        "scene_generator": scene_generator,
         "drive_source": drive_source,
         "captions": bool(data.get("captions", True)),
         "lyrics": (song.get("lyrics") or "").strip(),
@@ -253,6 +262,7 @@ def create_job_from_preset(preset_path: str | Path) -> Job:
         motion=preset["motion"],
         framing=preset["framing"],
         lora_scale=preset["lora_scale"],
+        scene_generator=preset["scene_generator"],
         captions_enabled=preset["captions"],
         lyrics=preset["lyrics"],
         character_ref=preset["character_ref"],

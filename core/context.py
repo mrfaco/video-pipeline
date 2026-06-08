@@ -15,7 +15,7 @@ from __future__ import annotations
 from pydantic import BaseModel, ConfigDict
 
 # Bump when the shape of JobContext changes (AGENTS.md §11 schema versioning).
-SCHEMA_VERSION = 13
+SCHEMA_VERSION = 14
 
 
 class JobContext(BaseModel):
@@ -65,6 +65,8 @@ class JobContext(BaseModel):
     character_trigger: str | None = None
     # Optional per-preset LoRA strength override (None = settings.LORA_SCALE).
     lora_scale: float | None = None
+    # Scene-gen backend override ("" = settings.SCENE_GENERATOR): "fal" | "seedream".
+    scene_generator: str = ""
     # Optional second character: when set, the pipeline renders it too and
     # compose lays out the viral TRIO (boss + two flanking backups). None = solo.
     backup_character_ref: str | None = None

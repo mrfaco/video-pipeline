@@ -1,0 +1,17 @@
+# Alma comfort post — golden-hour mate by the Paraná (Rosario). The
+# romanticize-your-life / save-and-share lane: photoreal Alma in the scene, slow
+# and still, MUTE, no caption (add the trend sound + a quiet line at post).
+#
+# vibe-with-a-character + Seedream: her identity is locked by her reference image
+# (alma_seedream.png), rendered photoreal by Seedream 4.5, then Kling lingers.
+# Self-contained — a plain run_job:
+#   PROVIDER_MODE=real ./venv/bin/python manage.py run_job presets/alma_mate_comfort.yaml --sync
+mode: vibe
+scene_generator: seedream
+
+character:
+  image: presets/characters/alma_seedream.png
+
+style: "a stunning tan sun-kissed Argentine woman with her signature sleek high ponytail and striking features, wearing a cozy cream knit sweater, calmly cradling a traditional mate gourd with a thermos beside her on the grass"
+
+theme: "the grassy Costanera riverside of Rosario Argentina at golden-hour sunset, the wide glowing Paraná river and warm hazy sky behind her, serene"

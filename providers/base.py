@@ -194,11 +194,19 @@ def get_portrait_generator() -> PortraitGenerator:
     return RealFalPortraitGenerator()
 
 
-def get_scene_generator() -> SceneGenerator:
+def get_scene_generator(backend: str | None = None) -> SceneGenerator:
+    """Pick the scene-gen backend: ``seedream`` (Seedream 4.5, photoreal,
+    reference-image identity) or ``fal`` (FLUX, LoRA/PuLID). ``backend`` (a
+    per-job override) falls back to ``settings.SCENE_GENERATOR``.
+    """
     if _is_fake():
         from providers.fakes import FakeSceneGenerator  # noqa: PLC0415
 
         return FakeSceneGenerator()
+    if (backend or settings.SCENE_GENERATOR) == "seedream":
+        from providers.seedream import RealSeedreamSceneGenerator  # noqa: PLC0415
+
+        return RealSeedreamSceneGenerator()
     from providers.fal import RealFalSceneGenerator  # noqa: PLC0415
 
     return RealFalSceneGenerator()

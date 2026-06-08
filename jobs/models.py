@@ -45,6 +45,9 @@ class Job(models.Model):
     # Optional per-preset LoRA strength (null = use settings.LORA_SCALE). A
     # glamour-trained identity LoRA needs ~1.0 to hold in a fresh scene.
     lora_scale = models.FloatField(null=True, blank=True)
+    # Scene-gen backend override: "" (settings.SCENE_GENERATOR) | "fal" (FLUX) |
+    # "seedream" (Seedream 4.5, photoreal, reference-image identity).
+    scene_generator = models.CharField(max_length=32, blank=True)
     # Per-preset captions toggle (e.g. off for the clean OOTD/vibe aesthetic).
     captions_enabled = models.BooleanField(default=True)
     theme = models.TextField()

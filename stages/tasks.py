@@ -117,9 +117,17 @@ def prepare_assets(job_id: str) -> dict:
     # Vibe videos are MUTE (they sync with nothing — the operator adds the sound
     # at post time), so skip the audio fetch/normalize entirely.
     if job.mode == "vibe":
+        # A vibe preset MAY carry a character → the "comfort post" lane (her in
+        # the scene, slow + still). Thread her identity + look + the backend.
         return JobContext(
             job_id=job_id, theme=job.theme, mode=job.mode, hook=(job.hook or None),
-            character_ref=job.character_ref, enable_captions=False, song_path=""
+            style=(job.style or None), motion=(job.motion or None),
+            character_ref=job.character_ref,
+            character_image=(job.character_image or None),
+            character_lora=(job.character_lora or None),
+            character_trigger=(job.character_trigger or None),
+            lora_scale=job.lora_scale, scene_generator=job.scene_generator,
+            enable_captions=False, song_path="",
         ).to_dict()
 
     # Mimic is MUTE like vibe (no song), but it must acquire the DRIVING video:
@@ -143,7 +151,7 @@ def prepare_assets(job_id: str) -> dict:
             character_image=(job.character_image or None),
             character_lora=(job.character_lora or None),
             character_trigger=(job.character_trigger or None),
-            lora_scale=job.lora_scale,
+            lora_scale=job.lora_scale, scene_generator=job.scene_generator,
             drive_source=job.drive_source, drive_video_path=str(drive),
             enable_captions=False, song_path="",
         ).to_dict()
@@ -200,7 +208,7 @@ def prepare_assets(job_id: str) -> dict:
         character_image=(job.character_image or None),
         character_lora=(job.character_lora or None),
         character_trigger=(job.character_trigger or None),
-        lora_scale=job.lora_scale,
+        lora_scale=job.lora_scale, scene_generator=job.scene_generator,
         backup_character_ref=(job.backup_character_ref or None),
         backup_character_image=(job.backup_character_image or None),
         song_path=str(song_src),
@@ -280,7 +288,7 @@ def generate_visuals(payload: dict) -> dict:
         prompt = settings.MIMIC_SCENE_PROMPT_TEMPLATE.format(theme=ctx.theme, style=style)
         still = artifact_path(ctx.job_id, "appearance_still.png")
         reference = Path(ctx.character_image) if ctx.character_image else None
-        get_scene_generator().generate(
+        get_scene_generator(backend=ctx.scene_generator).generate(
                 prompt, still, reference_image=reference,
                 lora=ctx.character_lora, trigger=ctx.character_trigger,
                 lora_scale=ctx.lora_scale,
@@ -298,8 +306,17 @@ def generate_visuals(payload: dict) -> dict:
         # portrait, no separate bg. dance = a woman dancing (N scenes for cuts);
         # vibe = a clean cinematic scene, no people, one slow continuous shot.
         if ctx.mode == "vibe":
-            base_prompt = settings.VIBE_SCENE_PROMPT_TEMPLATE.format(theme=ctx.theme)
-            motion_prompt = settings.VIBE_MOTION_PROMPT
+            # vibe-with-a-character = the comfort post (her in the scene, slow +
+            # still); plain vibe = a clean scene with no people + a flythrough.
+            if ctx.character_image:
+                style = ctx.style or settings.DANCE_CHARACTER_STYLE
+                base_prompt = settings.VIBE_CHARACTER_SCENE_PROMPT.format(
+                    theme=ctx.theme, style=style
+                )
+                motion_prompt = ctx.motion or settings.VIBE_CHARACTER_MOTION
+            else:
+                base_prompt = settings.VIBE_SCENE_PROMPT_TEMPLATE.format(theme=ctx.theme)
+                motion_prompt = settings.VIBE_MOTION_PROMPT
             cfg = settings.VIBE_KLING_CFG
             n = 1
             shots = [""]
@@ -328,14 +345,14 @@ def generate_visuals(payload: dict) -> dict:
         # into every scene (same girl, new scenes) via identity-preserving gen.
         reference = (
             Path(ctx.character_image)
-            if (ctx.mode == "dance" and ctx.character_image)
+            if (ctx.mode in ("dance", "vibe") and ctx.character_image)
             else None
         )
         clips: list[str] = []
         for i in range(n):
             prompt = f"{base_prompt}, {shots[i % len(shots)]}" if n > 1 else base_prompt
             still = artifact_path(ctx.job_id, f"scene_still_{i}.png")
-            get_scene_generator().generate(
+            get_scene_generator(backend=ctx.scene_generator).generate(
                 prompt, still, reference_image=reference,
                 lora=ctx.character_lora, trigger=ctx.character_trigger,
                 lora_scale=ctx.lora_scale,
@@ -505,7 +522,9 @@ def compose_video(payload: dict) -> dict:
     # The realism grade (if on) is the last step and writes the final ``out``;
     # everything before composes into ``final_video`` (the ungraded pre-grade
     # result), and the loop step wraps that.
-    grade = settings.REALISM_GRADE_ENABLED
+    # Seedream output is already photoreal — the de-glow grade (built to fight
+    # FLUX's gloss) would only dull it, so skip the grade for Seedream scenes.
+    grade = settings.REALISM_GRADE_ENABLED and ctx.scene_generator != "seedream"
     final_video = artifact_path(ctx.job_id, "pregrade.mp4") if grade else out
     compose_target = artifact_path(ctx.job_id, "prewrap.mp4") if crossfade_loop else final_video
     if ctx.mode == "vibe":

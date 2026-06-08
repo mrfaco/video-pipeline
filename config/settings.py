@@ -351,6 +351,31 @@ VIBE_MOTION_PROMPT = env(
         "cinematic (not shaky), no people, no text"
     ),
 )
+# Vibe-with-a-character = the "comfort post" lane (her in a scene, slow + still,
+# mute, no caption). When a vibe preset carries a `character`, scene-gen includes
+# her (her reference locks identity on Seedream) and Kling lingers instead of
+# flying through. The scene prompt is makeup-neutral + realistic; {style} carries
+# her look. NEVER name eyewear (FLUX/scene prior re-adds sunglasses).
+VIBE_CHARACTER_SCENE_PROMPT = env(
+    "VIBE_CHARACTER_SCENE_PROMPT",
+    default=(
+        "a real candid photo of a woman, {style}, in {theme}, warm natural true-to-life light, "
+        "realistic skin and real texture, calm and serene, candid and unposed, vertical 9:16"
+    ),
+)
+VIBE_CHARACTER_MOTION = env(
+    "VIBE_CHARACTER_MOTION",
+    default=(
+        "a slow calm lingering shot — she holds still and breathes gently, a soft breeze stirs "
+        "her hair, the scenery shimmers and the light slowly shifts behind her, very slow serene "
+        "minimal movement, peaceful, no fast motion, no text"
+    ),
+)
+# Scene-generator backend: "fal" (FLUX, LoRA/PuLID identity) or "seedream"
+# (Seedream 4.5, photoreal, reference-image identity — Alma's new engine). A
+# preset overrides per-job with `scene_generator:`.
+SCENE_GENERATOR = env("SCENE_GENERATOR", default="fal")
+SEEDREAM_MODEL = env("SEEDREAM_MODEL", default="fal-ai/bytedance/seedream/v4.5/text-to-image")
 DANCE_MOTION_PROMPT = env(
     "DANCE_MOTION_PROMPT",
     default=(
